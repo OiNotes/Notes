@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f6f5f1" />
+      <stop offset="1" stop-color="#e7e0d6" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ff8a50" stop-opacity="0.42" />
+      <stop offset="1" stop-color="#ff7a3d" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" rx="48" fill="url(#bg)" />
+  <rect x="120" y="120" width="1360" height="660" rx="40" fill="#ffffff" stroke="#ebe6de" />
+  <rect x="120" y="120" width="1360" height="200" rx="40" fill="url(#glow)" />
+  <g transform="translate(740,400)">
+    <circle cx="0" cy="0" r="90" fill="#fff" fill-opacity="0.2" />
+    <polygon points="-22,-36 88,0 -22,36" fill="#ff7a3d" />
+  </g>
+  <text x="150" y="806" fill="#7f7b74" font-family="Inter, system-ui, -apple-system" font-size="48" letter-spacing="0.28em">
+    OI / NOTES
+  </text>
+</svg>
+

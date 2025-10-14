@@ -1,0 +1,14 @@
+diff --git a/dist/bin/next b/dist/bin/next
+index 1aea428aa8bce320f287584153bf5a6dc594e027..436406aed486acf89139036142cc0038686b4a95 100755
+--- a/dist/bin/next
++++ b/dist/bin/next
+@@ -17,6 +17,9 @@ function _interop_require_default(obj) {
+         default: obj
+     };
+ }
++if (!process.env.PORT && process.argv.slice(2).includes('dev')) {
++    process.env.PORT = '4311';
++}
+ if (process.env.NEXT_RSPACK) {
+     // silent rspack's schema check
+     process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent';
