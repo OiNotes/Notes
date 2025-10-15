@@ -387,6 +387,8 @@ code {
   height: 100%;
   object-fit: cover;
   filter: saturate(110%);
+  border-radius: clamp(var(--radius-xl), 2vw, var(--radius-2xl));
+  -webkit-transform: translateZ(0);
 }
 
 /* Custom poster to hide orange placeholder */
@@ -1045,7 +1047,6 @@ code {
 /* Режим кинотеатра - расширение на месте */
 .video-card--theater {
   z-index: 100;
-  transform: scale(1.15);
   pointer-events: none;
 }
 
@@ -1062,9 +1063,14 @@ code {
 }
 
 .video-card--theater .video-card__frame {
-  border-radius: var(--radius-lg);
-  box-shadow: 0 48px 140px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(202, 165, 122, 0.3);
   pointer-events: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  width: fit-content;
+  height: fit-content;
 }
 
 /* Backdrop затемнение */
@@ -1091,6 +1097,16 @@ code {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
+  border-radius: var(--radius-2xl);
+}
+
+.video-card--theater .video-card__video {
+  width: 100%;
+  height: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-2xl);
 }
 
 /* Custom poster overlay - скрывает нативный оранжевый placeholder браузера */
@@ -1100,6 +1116,11 @@ code {
   background: #000;
   z-index: 1;
   pointer-events: none;
+  border-radius: var(--radius-2xl);
+}
+
+.video-card--theater .video-card__poster {
+  border-radius: var(--radius-2xl);
 }
 
 /* Контент плавно исчезает (fadeout) в режиме кинотеатра */
