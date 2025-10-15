@@ -48,6 +48,20 @@ export const personFrontmatterSchema = z.object({
   updatedAt: z.string().optional(),
   hero: heroSchema,
   video: featureVideoSchema,
+  // Optional mapping to highlight an era on the site-wide timeline
+  // Allowed values correspond to LuxTimeline ERAS ids
+  timelineEraId: z
+    .enum([
+      "1916-1927",
+      "1928",
+      "1930s",
+      "1941-1945",
+      "1946-1971",
+      "1970-1980s",
+      "1990-2000s",
+      "2010s-2025",
+    ])
+    .optional(),
   introSequences: z.array(introSequenceSchema).default([]),
   artifacts: z.array(artifactSchema).default([]),
   gallery: z.array(mediaAssetSchema).default([]),

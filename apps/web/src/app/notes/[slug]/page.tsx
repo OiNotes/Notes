@@ -5,6 +5,7 @@ import { HeroTeaser } from "@/components/hero-teaser";
 import { Prose } from "@/components/prose";
 import { TextReader } from "@/components/text-reader";
 import { VideoCard } from "@/components/video-card";
+import { LuxTimeline } from "@/components/lux-timeline";
 import { getAllPeopleSlugs, getPerson } from "@/lib/mdx";
 
 export const dynamicParams = false;
@@ -14,8 +15,10 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-export default async function NotePage({ params }: { params: { slug: string } }) {
-  const profile = await getPerson(params.slug).catch(() => null);
+export default async function NotePage({ params }: { params: Promise<{ slug: string }> | { slug: string } }) {
+  // Next.js 15+: params may be a Promise — always await
+  const { slug } = await (params as any);
+  const profile = await getPerson(slug).catch(() => null);
 
   if (!profile) {
     notFound();
@@ -31,6 +34,7 @@ export default async function NotePage({ params }: { params: { slug: string } })
           title={profile.frontmatter.title}
           caption={profile.frontmatter.summary}
         />
+        {/* Read more right after video */}
         <TextReader
           title={profile.frontmatter.title}
           content={
@@ -39,6 +43,8 @@ export default async function NotePage({ params }: { params: { slug: string } })
             </Prose>
           }
         />
+        {/* Timeline below the reader */}
+        <LuxTimeline currentEraId={profile.frontmatter.timelineEraId} />
       </Container>
     </>
   );
