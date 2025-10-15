@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type VideoCardProps = {
   source: string;
@@ -21,6 +22,7 @@ const formatTime = (seconds: number) => {
 
 export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [duration, setDuration] = useState(0);
@@ -110,6 +112,15 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
     if (isTheaterMode) {
       document.body.classList.add("theater-mode-active");
       resetHideControlsTimer();
+
+      // Плавно центрировать видео в viewport
+      if (containerRef.current) {
+        containerRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center'
+        });
+      }
     } else {
       document.body.classList.remove("theater-mode-active");
       setShowControls(true);
@@ -199,10 +210,26 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
     video.currentTime = (value / 1000) * duration;
   };
 
+  const exitTheaterMode = () => {
+    const video = videoRef.current;
+    if (video && !video.paused) {
+      video.pause();
+    }
+  };
+
   return (
-    <figure className={`video-card ${isTheaterMode ? "video-card--theater" : ""}`} data-theater-mode={isTheaterMode}>
-      <div
-        className="video-card__frame"
+    <>
+      {isTheaterMode && typeof document !== "undefined" && createPortal(
+        <div
+          className="video-card__backdrop"
+          onClick={exitTheaterMode}
+          aria-label="Выйти из режима кинотеатра"
+        />,
+        document.body
+      )}
+      <figure ref={containerRef} className={`video-card ${isTheaterMode ? "video-card--theater" : ""}`} data-theater-mode={isTheaterMode}>
+        <div
+          className="video-card__frame"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onMouseMove={onUserActivity}
@@ -219,7 +246,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
         />
         {/* Custom poster overlay to hide native browser placeholder */}
         {!isPlaying && <div className="video-card__poster" />}
-        {isTheaterMode && <div className="video-card__backdrop" />}
         {!isPlaying && (
           <button
             type="button"
@@ -269,7 +295,8 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
         </div>
       </div>
       {caption ? <figcaption className="video-card__caption">{caption}</figcaption> : null}
-    </figure>
+      </figure>
+    </>
   );
 }
 
