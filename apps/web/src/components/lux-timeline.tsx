@@ -129,6 +129,11 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
   // Simple proximity highlight (nearest point) on mouse move
   const [nearestIdx, setNearestIdx] = useState<number | null>(null);
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.dataset?.timelineIndex) {
+      setNearestIdx(Number(target.dataset.timelineIndex));
+      return;
+    }
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -234,9 +239,11 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                         aria-pressed={isActive}
                         aria-current={isCurrent ? "true" : undefined}
                         title={`${era.years} — ${era.title}`}
+                        data-timeline-index={i}
                         onClick={() => onSelect(era.id)}
                         onFocus={() => setNearestIdx(i)}
                         onMouseEnter={() => setNearestIdx(i)}
+                        onMouseLeave={() => setNearestIdx(null)}
                       />
                     </foreignObject>
 
