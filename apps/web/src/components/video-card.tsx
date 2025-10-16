@@ -24,7 +24,9 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [previousVolume, setPreviousVolume] = useState(1);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
@@ -143,8 +145,10 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
 
     const handleLoaded = () => {
       setDuration(video.duration);
-      setIsMuted(video.muted || video.volume === 0);
-      // НЕ запускаем видео автоматически
+      // Инициализируем громкость при загрузке
+      video.volume = 1;
+      setVolume(1);
+      setIsMuted(false);
     };
     const handlePlay = () => {
       setIsPlaying(true);
@@ -159,7 +163,10 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
       setIsTheaterMode(false);
     };
     const handleTime = () => setCurrentTime(video.currentTime);
-    const handleVolume = () => setIsMuted(video.muted || video.volume === 0);
+    const handleVolume = () => {
+      setVolume(video.volume);
+      setIsMuted(video.volume === 0);
+    };
 
     video.addEventListener("loadedmetadata", handleLoaded);
     video.addEventListener("play", handlePlay);
@@ -197,10 +204,35 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
     }
   };
 
+  const handleVolumeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const newVolume = Number(event.currentTarget.value);
+    video.volume = newVolume;
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+    if (newVolume > 0) {
+      setPreviousVolume(newVolume);
+    }
+  };
+
   const toggleMute = () => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !video.muted;
+
+    if (volume === 0) {
+      // Unmute: восстанавливаем предыдущий уровень громкости
+      const newVolume = previousVolume > 0 ? previousVolume : 1;
+      video.volume = newVolume;
+      setVolume(newVolume);
+      setIsMuted(false);
+    } else {
+      // Mute: сохраняем текущий уровень и обнуляем
+      setPreviousVolume(volume);
+      video.volume = 0;
+      setVolume(0);
+      setIsMuted(true);
+    }
   };
 
   const handleSeek = (event: ChangeEvent<HTMLInputElement>) => {
@@ -240,7 +272,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
           ref={videoRef}
           className="video-card__video"
           src={source}
-          muted
           playsInline
           preload="metadata"
         />
@@ -284,14 +315,26 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
             aria-label="Позиция воспроизведения"
           />
           <span className="video-time">{formatTime(duration)}</span>
-          <button
-            type="button"
-            className="video-btn"
-            onClick={toggleMute}
-            aria-label={isMuted ? "Включить звук" : "Отключить звук"}
-          >
-            {isMuted ? <MuteIcon /> : <VolumeIcon />}
-          </button>
+          <div className="video-volume">
+            <button
+              type="button"
+              className="video-btn video-volume__btn"
+              onClick={toggleMute}
+              aria-label={volume === 0 ? "Включить звук" : "Отключить звук"}
+            >
+              <VolumeIcon volume={volume} />
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={handleVolumeChange}
+              className="video-volume__slider"
+              aria-label="Громкость"
+            />
+          </div>
         </div>
       </div>
       {caption ? <figcaption className="video-card__caption">{caption}</figcaption> : null}
@@ -316,7 +359,7 @@ function PauseIcon() {
   );
 }
 
-function VolumeIcon() {
+function VolumeHighIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M5 9v6h4l5 4V5l-5 4H5z" />
@@ -325,11 +368,35 @@ function VolumeIcon() {
   );
 }
 
-function MuteIcon() {
+function VolumeMediumIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M5 9v6h4l5 4V5l-5 4H5z" />
+      <path d="M16 12c0-1.1.45-2.1 1.17-2.83l1.06 1.06A2.5 2.5 0 0 0 17 12c0 .69.28 1.31.73 1.76l-1.06 1.06A3.97 3.97 0 0 1 16 12z" />
+    </svg>
+  );
+}
+
+function VolumeLowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M5 9v6h4l5 4V5l-5 4H5z" />
+    </svg>
+  );
+}
+
+function VolumeMutedIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M5 9v6h4l5 4V5l-5 4H5z" />
       <path d="m18.3 8.41-1.41 1.41L19.08 12l-2.19 2.18 1.41 1.41L20.5 13.4l2.2 2.19 1.41-1.41L21.92 12l2.19-2.18-1.41-1.41-2.2 2.19-2.2-2.19z" />
     </svg>
   );
+}
+
+function VolumeIcon({ volume }: { volume: number }) {
+  if (volume === 0) return <VolumeMutedIcon />;
+  if (volume < 0.33) return <VolumeLowIcon />;
+  if (volume < 0.66) return <VolumeMediumIcon />;
+  return <VolumeHighIcon />;
 }
