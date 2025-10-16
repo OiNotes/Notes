@@ -44,7 +44,7 @@ export default async function NotePage({ params }: { params: Promise<{ slug: str
           }
         />
         {/* Timeline below the reader */}
-        <LuxTimeline currentEraId={profile.frontmatter.timelineEraId} />
+        <LuxTimeline showHeroPoint={slug === 'krassin-engineering-poems'} />
       </Container>
     </>
   );

@@ -53,7 +53,7 @@ const ERAS: Era[] = [
     events: ["Борьба за сохранение", "Передача музею"],
   },
   {
-    id: "2010s-2025",
+    id: "2010-2025",
     years: "2010–2025",
     title: "Музей",
     events: ["Ремонт 2014", "Музей‑ледокол", "Современность"],
@@ -62,12 +62,13 @@ const ERAS: Era[] = [
 
 type PointLayout = { x: number; y: number; t: number };
 
-export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
+export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [rippleKey, setRippleKey] = useState<number>(0);
+  const [hoveredLineIdx, setHoveredLineIdx] = useState<number | null>(null);
 
   // Compute positions along the curve (evenly spaced by length)
   const points: PointLayout[] = useMemo(() => {
@@ -80,7 +81,11 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
       // avoid placing too close to the very ends
       const t = (i + 0.5) / count;
       const pt = el.getPointAtLength(total * t);
-      p.push({ x: pt.x, y: pt.y, t });
+      p.push({
+        x: pt.x,
+        y: pt.y,
+        t
+      });
     }
     return p;
   }, [svgRef.current, pathRef.current, revealed]);
@@ -186,6 +191,46 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
+              <radialGradient id="goldRadialGlow">
+                <stop offset="0%" stopColor="rgba(202, 165, 122, 1)" />
+                <stop offset="50%" stopColor="rgba(202, 165, 122, 0.4)" />
+                <stop offset="100%" stopColor="rgba(202, 165, 122, 0)" />
+              </radialGradient>
+              <linearGradient id="goldLineGradient">
+                <stop offset="0%" stopColor="rgba(202, 165, 122, 0.8)" />
+                <stop offset="100%" stopColor="rgba(202, 165, 122, 0)" />
+              </linearGradient>
+              <linearGradient id="lineGradientFade">
+                <stop offset="0%" stopColor="rgba(202, 165, 122, 0.95)" />
+                <stop offset="65%" stopColor="rgba(202, 165, 122, 0.6)" />
+                <stop offset="90%" stopColor="rgba(202, 165, 122, 0.1)" />
+                <stop offset="100%" stopColor="rgba(202, 165, 122, 0)" />
+              </linearGradient>
+
+              {/* MINIMAL PREMIUM Gradients - Apple Inspired */}
+              <radialGradient id="goldCoreGradient">
+                <stop offset="0%" stopColor="rgba(255, 248, 235, 1)" />
+                <stop offset="25%" stopColor="rgba(245, 220, 190, 1)" />
+                <stop offset="50%" stopColor="rgba(222, 185, 142, 1)" />
+                <stop offset="75%" stopColor="rgba(202, 165, 122, 1)" />
+                <stop offset="100%" stopColor="rgba(182, 145, 102, 0.98)" />
+              </radialGradient>
+
+              <linearGradient id="energyRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="rgba(222, 185, 142, 0.7)" />
+                <stop offset="50%" stopColor="rgba(202, 165, 122, 0.6)" />
+                <stop offset="100%" stopColor="rgba(182, 145, 102, 0.4)" />
+              </linearGradient>
+
+              <filter id="deepGlow" x="-150%" y="-150%" width="400%" height="400%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+                <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 2 0" result="glow" />
+                <feMerge>
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="glow" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
             {/* Base path */}
@@ -211,15 +256,13 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                 const pt = points[i];
                 const isActive = selected === era.id;
                 const isNear = nearestIdx === i;
-                const isCurrent = currentEraId === era.id;
                 return (
                   <g
                     key={era.id}
                     className={
                       "timeline-lux__point" +
                       (isActive ? " is-active" : "") +
-                      (isNear ? " is-near" : "") +
-                      (isCurrent ? " is-current" : "")
+                      (isNear ? " is-near" : "")
                     }
                     transform={`translate(${pt.x}, ${pt.y})`}
                   >
@@ -237,7 +280,6 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                         className="timeline-lux__dot"
                         aria-label={`${era.years} — ${era.title}`}
                         aria-pressed={isActive}
-                        aria-current={isCurrent ? "true" : undefined}
                         title={`${era.years} — ${era.title}`}
                         data-timeline-index={i}
                         onClick={() => onSelect(era.id)}
@@ -257,14 +299,6 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                     {/* Always-visible subtle ring to suggest clickability */}
                     <circle className="timeline-lux__dot-ring" r={10} />
 
-                    {/* Extra ring for current */}
-                    {isCurrent && (
-                      <>
-                        <circle className="timeline-lux__dot-halo" r={20} />
-                        <circle className="timeline-lux__dot-ring-current" r={14} />
-                      </>
-                    )}
-
                     {/* Year label */}
                     <text className="timeline-lux__label" x={0} y={-18} textAnchor="middle">
                       {era.years}
@@ -272,6 +306,102 @@ export function LuxTimeline({ currentEraId }: { currentEraId?: string }) {
                   </g>
                 );
               })}
+
+            {/* MINIMAL PREMIUM Hero Nucleus - Apple Watch Inspired */}
+            {showHeroPoint && points.length === ERAS.length && (
+              <g transform="translate(700, 30)" className="hero-nucleus">
+                {/* LAYER 1: Deep Ambient Glow */}
+                <circle
+                  className="hero-nucleus__glow-deep"
+                  r={40}
+                  fill="url(#goldRadialGlow)"
+                  filter="url(#deepGlow)"
+                  opacity={0.06}
+                />
+
+                {/* LAYER 2: Mid Glow */}
+                <circle
+                  className="hero-nucleus__glow-mid"
+                  r={26}
+                  fill="url(#goldRadialGlow)"
+                  opacity={0.12}
+                />
+
+                {/* LAYER 3: Constellation Lines */}
+                {points.map((pt, i) => {
+                  const dx = pt.x - 700;
+                  const dy = pt.y - 30;
+                  const length = Math.sqrt(dx * dx + dy * dy);
+                  const shortenBy = 35;
+                  const ratio = shortenBy / length;
+                  const x1 = dx * ratio;
+                  const y1 = dy * ratio;
+                  const isHovered = hoveredLineIdx === i;
+                  return (
+                    <line
+                      key={`hero-line-${i}`}
+                      x1={x1}
+                      y1={y1}
+                      x2={dx}
+                      y2={dy}
+                      stroke="url(#lineGradientFade)"
+                      strokeWidth={isHovered ? 1.8 : 1.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      opacity={isHovered ? 0.8 : 0.5}
+                      strokeDasharray="5 8"
+                      filter="url(#goldGlow)"
+                      vectorEffect="non-scaling-stroke"
+                      className="hero-nucleus__constellation"
+                      onMouseEnter={() => setHoveredLineIdx(i)}
+                      onMouseLeave={() => setHoveredLineIdx(null)}
+                      style={{
+                        animation: `line-draw 800ms ease-out ${i * 80}ms both`,
+                        transition: 'stroke-width 300ms ease, opacity 300ms ease'
+                      }}
+                    />
+                  );
+                })}
+
+                {/* LAYER 4: Optional Orbital Ring */}
+                <circle
+                  className="hero-nucleus__orbital"
+                  r={32}
+                  fill="none"
+                  stroke="url(#energyRingGradient)"
+                  strokeWidth={1.2}
+                  strokeDasharray="6 10"
+                  opacity={0.4}
+                />
+
+                {/* LAYER 5: Core Shadow (3D depth) */}
+                <circle
+                  className="hero-nucleus__core-shadow"
+                  r={17}
+                  fill="rgba(142, 105, 62, 0.25)"
+                  filter="url(#deepGlow)"
+                />
+
+                {/* LAYER 6: Main Core */}
+                <circle
+                  className="hero-nucleus__core"
+                  r={16}
+                  fill="url(#goldCoreGradient)"
+                  filter="url(#goldGlow)"
+                />
+
+                {/* LAYER 7: Specular Highlight */}
+                <ellipse
+                  className="hero-nucleus__specular"
+                  cx={0}
+                  cy={-5}
+                  rx={8}
+                  ry={5}
+                  fill="rgba(255, 255, 255, 0.7)"
+                  filter="url(#glow)"
+                />
+              </g>
+            )}
           </svg>
         </div>
 
