@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import type { PersonFrontmatter } from "@/lib/content-schema";
 
@@ -19,14 +19,14 @@ export function FeatureCarousel({ items, headline = "Выбор тем" }: Featu
 
   if (items.length === 0) return null;
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!trackRef.current || isDragging) return;
     const track = trackRef.current;
     const slideWidth = track.children[0]?.clientWidth || 0;
     const gap = 24; // clamp gap approximation
     const newIndex = Math.round(track.scrollLeft / (slideWidth + gap));
     setActiveIndex(Math.min(newIndex, items.length - 1));
-  };
+  }, [isDragging, items.length]);
 
   const scrollToSlide = (index: number) => {
     if (!trackRef.current) return;
@@ -79,7 +79,7 @@ export function FeatureCarousel({ items, headline = "Выбор тем" }: Featu
 
     track.addEventListener("scroll", handleScroll);
     return () => track.removeEventListener("scroll", handleScroll);
-  }, [isDragging]);
+  }, [handleScroll]);
 
   return (
     <section className="feature-carousel" aria-label={headline}>

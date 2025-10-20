@@ -30,15 +30,14 @@ function MoonIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export function ThemeToggle() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
-  const current = theme === "system" ? resolvedTheme : theme;
-  const isDark = current === "dark";
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const Icon = useMemo(() => (isDark ? MoonIcon : SunIcon), [isDark]);
-  const label = isDark ? "Включить светлую тему" : "Включить тёмную тему";
+  const label = "Тёмная тема";
 
   const handleClick = () => {
-    setTheme(isDark ? "light" : "dark");
+    // Theme is always dark in current implementation
   };
 
   return (
