@@ -12,7 +12,7 @@ type FeatureCarouselProps = {
 
 export function FeatureCarousel({ items, headline = "Выбор тем" }: FeatureCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1); // -1 = нет активной карточки по умолчанию
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);

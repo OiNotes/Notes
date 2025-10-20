@@ -172,7 +172,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
           <svg
             ref={svgRef}
             className="timeline-lux__svg"
-            viewBox="0 0 1400 280"
+            viewBox="0 -100 1400 380"
             onMouseMove={onMove}
             onMouseLeave={() => setNearestIdx(null)}
           >
@@ -309,7 +309,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
 
             {/* MINIMAL PREMIUM Hero Nucleus - Apple Watch Inspired */}
             {showHeroPoint && points.length === ERAS.length && (
-              <g transform="translate(700, 30)" className="hero-nucleus">
+              <g transform="translate(700, 130)" className="hero-nucleus">
                 {/* LAYER 1: Deep Ambient Glow */}
                 <circle
                   className="hero-nucleus__glow-deep"
@@ -330,20 +330,24 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
                 {/* LAYER 3: Constellation Lines */}
                 {points.map((pt, i) => {
                   const dx = pt.x - 700;
-                  const dy = pt.y - 30;
+                  const dy = pt.y - 130;
                   const length = Math.sqrt(dx * dx + dy * dy);
-                  const shortenBy = 35;
-                  const ratio = shortenBy / length;
-                  const x1 = dx * ratio;
-                  const y1 = dy * ratio;
+                  const shortenByStart = 35;
+                  const shortenByEnd = 18;
+                  const ratioStart = shortenByStart / length;
+                  const ratioEnd = 1 - shortenByEnd / length;
+                  const x1 = dx * ratioStart;
+                  const y1 = dy * ratioStart;
+                  const x2 = dx * ratioEnd;
+                  const y2 = dy * ratioEnd;
                   const isHovered = hoveredLineIdx === i;
                   return (
                     <line
                       key={`hero-line-${i}`}
                       x1={x1}
                       y1={y1}
-                      x2={dx}
-                      y2={dy}
+                      x2={x2}
+                      y2={y2}
                       stroke="url(#lineGradientFade)"
                       strokeWidth={isHovered ? 1.8 : 1.2}
                       strokeLinecap="round"

@@ -7,13 +7,12 @@ const FEATURED_PERSON = "slow-morning-fieldnotes";
 
 export default async function Home() {
   const profile = await getPerson(FEATURED_PERSON);
-  const all = await getAllPeople();
-  const frontmatters = all.map((item) => item.frontmatter);
+  const krassin = await getPerson("krassin-engineering-poems");
 
   return (
     <>
       <HeroTeaser frontmatter={profile.frontmatter} />
-      <FeatureCarousel items={frontmatters} headline="Выбор тем" />
+      <FeatureCarousel items={[krassin.frontmatter]} headline="Выбор тем" />
       <DecorativeBand />
     </>
   );

@@ -42,34 +42,15 @@ export function TextReader({ content, title = "Читалка" }: TextReaderProp
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen]);
 
-  const increaseFontSize = () => setFontSize((prev) => Math.min(prev + 2, 36));
-  const decreaseFontSize = () => setFontSize((prev) => Math.max(prev - 2, 14));
-
-  const cycleFontFamily = () => {
-    setFontFamily((prev) => {
-      if (prev === "serif") return "sans";
-      if (prev === "sans") return "mono";
-      return "serif";
-    });
-  };
-
   const cycleColorMode = () => {
     setColorMode((prev) => {
-      if (prev === "dark") return "light";
-      if (prev === "light") return "sepia";
+      if (prev === "dark") return "sepia";
       return "dark";
     });
   };
 
-  const getFontFamilyLabel = () => {
-    if (fontFamily === "serif") return "Serif";
-    if (fontFamily === "sans") return "Sans";
-    return "Mono";
-  };
-
   const getColorModeLabel = () => {
     if (colorMode === "dark") return "Темный";
-    if (colorMode === "light") return "Светлый";
     return "Sepia";
   };
 
@@ -103,38 +84,6 @@ export function TextReader({ content, title = "Читалка" }: TextReaderProp
               <h2 className="text-reader__title">{title}</h2>
 
               <div className="text-reader__controls">
-                {/* Font Size Controls */}
-                <button
-                  type="button"
-                  className="text-reader__btn"
-                  onClick={decreaseFontSize}
-                  aria-label="Уменьшить шрифт"
-                  title="Уменьшить шрифт"
-                >
-                  <MinusIcon />
-                </button>
-                <span className="text-reader__font-size">{fontSize}px</span>
-                <button
-                  type="button"
-                  className="text-reader__btn"
-                  onClick={increaseFontSize}
-                  aria-label="Увеличить шрифт"
-                  title="Увеличить шрифт"
-                >
-                  <PlusIcon />
-                </button>
-
-                {/* Font Family Toggle */}
-                <button
-                  type="button"
-                  className="text-reader__btn text-reader__btn--font"
-                  onClick={cycleFontFamily}
-                  aria-label={`Шрифт: ${getFontFamilyLabel()}`}
-                  title={`Шрифт: ${getFontFamilyLabel()}`}
-                >
-                  <span className="text-reader__btn-label">{getFontFamilyLabel()}</span>
-                </button>
-
                 {/* Color Mode Toggle */}
                 <button
                   type="button"
@@ -144,7 +93,6 @@ export function TextReader({ content, title = "Читалка" }: TextReaderProp
                   title={`Тема: ${getColorModeLabel()}`}
                 >
                   {colorMode === "dark" && <MoonIcon />}
-                  {colorMode === "light" && <SunIcon />}
                   {colorMode === "sepia" && <SepiaIcon />}
                 </button>
 

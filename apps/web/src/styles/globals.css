@@ -441,8 +441,9 @@ code {
 .timeline-lux__viewport {
   position: relative;
   overflow-x: hidden; /* prevent page shift */
+  overflow-y: visible; /* allow nucleus glow to expand vertically */
   -webkit-overflow-scrolling: touch;
-  padding-block: clamp(12px, 2vw, 20px);
+  padding-block: clamp(80px, 8vw, 120px); /* increased for nucleus clearance */
 }
 
 .timeline-lux__svg {
@@ -1192,31 +1193,6 @@ code {
 
 .feature-carousel__track > .feature-slide:last-child {
   transform-origin: right center;
-}
-
-/* Эффект Digital Crown: активная карточка крупнее и четче */
-.feature-slide--active {
-  transform: scale(1.05) translateZ(40px); /* Уменьшен scale с 1.08 до 1.05 */
-  box-shadow:
-    0 48px 96px rgba(12, 14, 18, 0.42),
-    0 0 0 1px rgba(202, 165, 122, 0.4),
-    0 0 60px rgba(202, 165, 122, 0.12);
-  filter: blur(0px) brightness(1.05);
-  z-index: 5;
-}
-
-/* Неактивные карточки: меньше, blur эффект */
-.feature-slide--inactive {
-  transform: scale(0.92) translateZ(0px);
-  filter: blur(1.2px) brightness(0.88);
-  opacity: 0.75;
-}
-
-.feature-slide--inactive[data-distance="2"],
-.feature-slide--inactive[data-distance="3"],
-.feature-slide--inactive[data-distance="4"] {
-  filter: blur(2px) brightness(0.75);
-  opacity: 0.5;
 }
 
 .feature-slide__media {
@@ -2294,7 +2270,7 @@ code {
 .text-reader__modal {
   position: fixed;
   inset: 0;
-  background: #ffffff;
+  background: #f4f1ea;
   z-index: 1000;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -2310,7 +2286,7 @@ code {
   gap: var(--space-4);
   padding: 20px clamp(24px, 5vw, 40px);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: #fafafa;
+  background: #ebe8dd;
 }
 
 .text-reader__title {
@@ -2451,7 +2427,7 @@ code {
 
 /* Light Mode (Default) */
 .text-reader__content--light {
-  background: #ffffff;
+  background: #f4f1ea;
   color: #1a1a1a;
 }
 
