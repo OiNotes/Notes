@@ -1,5 +1,0 @@
-{
-  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && cd apps/web && pnpm build",
-  "installCommand": "echo 'Skipping default install'",
-  "framework": "nextjs"
-}
