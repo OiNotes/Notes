@@ -1,3 +1,4 @@
 {
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile && cd apps/web && ln -sf ../../node_modules node_modules"
+  "buildCommand": "cd ../.. && pnpm build --filter=@oi/web",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
