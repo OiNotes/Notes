@@ -309,7 +309,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
 
             {/* MINIMAL PREMIUM Hero Nucleus - Apple Watch Inspired */}
             {showHeroPoint && points.length === ERAS.length && (
-              <g transform="translate(700, 130)" className="hero-nucleus">
+              <g transform="translate(700, 80)" className="hero-nucleus">
                 {/* LAYER 1: Deep Ambient Glow */}
                 <circle
                   className="hero-nucleus__glow-deep"
@@ -330,7 +330,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
                 {/* LAYER 3: Constellation Lines */}
                 {points.map((pt, i) => {
                   const dx = pt.x - 700;
-                  const dy = pt.y - 130;
+                  const dy = pt.y - 80;
                   const length = Math.sqrt(dx * dx + dy * dy);
                   const shortenByStart = 35;
                   const shortenByEnd = 18;
