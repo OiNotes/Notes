@@ -1,0 +1,75 @@
+{
+  "id": "demo-song",
+  "slug": "demo-song",
+  "title": "Демо-песня",
+  "artist": "Oi/Notes",
+  "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "coverImageUrl": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=800&h=800&fit=crop",
+  "duration": 348,
+  "description": "Демонстрация музыкального плеера с синхронизированными переводами",
+  "accent": "#d4af37",
+  "tags": ["демо", "пример"],
+  "publishedAt": "2025-01-15T12:00:00Z",
+  "lyrics": [
+    {
+      "id": "line-1",
+      "text": "Это первая строка текста",
+      "startTime": 1000
+    },
+    {
+      "id": "line-2",
+      "text": "Слова плавно появляются",
+      "startTime": 5000
+    },
+    {
+      "id": "line-3",
+      "text": "Синхронизированные с музыкой",
+      "startTime": 9000
+    },
+    {
+      "id": "line-4",
+      "text": "Каждая строка выделяется",
+      "startTime": 13000
+    },
+    {
+      "id": "line-5",
+      "text": "Когда приходит её время",
+      "startTime": 17000
+    },
+    {
+      "id": "line-6",
+      "text": "Нажмите на строку",
+      "startTime": 21000
+    },
+    {
+      "id": "line-7",
+      "text": "Чтобы перемотать к ней",
+      "startTime": 25000
+    },
+    {
+      "id": "line-8",
+      "text": "Дизайн в стиле люкс",
+      "startTime": 29000
+    },
+    {
+      "id": "line-9",
+      "text": "Плавные анимации",
+      "startTime": 33000
+    },
+    {
+      "id": "line-10",
+      "text": "Золотые акценты повсюду",
+      "startTime": 37000
+    },
+    {
+      "id": "line-11",
+      "text": "Идеально для мобильных",
+      "startTime": 41000
+    },
+    {
+      "id": "line-12",
+      "text": "Добро пожаловать в Oi/Notes Music",
+      "startTime": 45000
+    }
+  ]
+}
