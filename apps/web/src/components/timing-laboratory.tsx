@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatTime } from "@/lib/music";
+import { formatTime } from "@/lib/music-utils";
 import type { LyricLine } from "@/lib/music-schema";
 
 type TimingLaboratoryProps = {

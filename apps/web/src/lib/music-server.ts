@@ -54,27 +54,3 @@ export async function saveSong(song: Song): Promise<void> {
   const filePath = path.join(MUSIC_CONTENT_DIR, `${song.slug}.json`);
   await fs.writeFile(filePath, JSON.stringify(song, null, 2), "utf-8");
 }
-
-/**
- * Форматировать время для отображения (MM:SS)
- */
-export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
-/**
- * Найти активную строку текста на основе текущего времени воспроизведения
- */
-export function getActiveLyricIndex(lyrics: Song["lyrics"], currentTime: number): number {
-  const currentMs = currentTime * 1000;
-
-  for (let i = lyrics.length - 1; i >= 0; i--) {
-    if (currentMs >= lyrics[i].startTime) {
-      return i;
-    }
-  }
-
-  return -1; // до первой строки
-}

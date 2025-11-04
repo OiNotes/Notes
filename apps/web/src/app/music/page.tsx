@@ -1,4 +1,4 @@
-import { getAllSongs } from "@/lib/music";
+import { getAllSongs } from "@/lib/music-server";
 import { MusicCatalog } from "@/components/music-catalog";
 import { Container } from "@/components/container";
 

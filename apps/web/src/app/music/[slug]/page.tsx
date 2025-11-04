@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getAllSongs, getSongBySlug } from "@/lib/music";
+import { getAllSongs, getSongBySlug } from "@/lib/music-server";
 import { MusicPlayer } from "@/components/music-player";
 import { Container } from "@/components/container";
 

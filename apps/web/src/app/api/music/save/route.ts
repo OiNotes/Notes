@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { saveSong } from "@/lib/music";
+import { saveSong } from "@/lib/music-server";
 import { songSchema } from "@/lib/music-schema";
 
 export async function POST(request: Request) {
