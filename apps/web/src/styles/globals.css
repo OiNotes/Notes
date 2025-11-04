@@ -2565,3 +2565,796 @@ code {
     min-width: 52px;
   }
 }
+
+/* ========================================
+   МУЗЫКАЛЬНЫЙ ПЛЕЕР - LUXURY DESIGN
+   ======================================== */
+
+/* Music Page */
+.music-page {
+  min-height: 60vh;
+}
+
+.music-page__header {
+  text-align: center;
+  margin-bottom: var(--space-10);
+}
+
+.music-page__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  font-weight: 300;
+  margin: 0 0 var(--space-4) 0;
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.music-page__subtitle {
+  font-size: var(--fs-lg);
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* Music Catalog */
+.music-catalog {
+  padding-block: var(--space-8);
+}
+
+.music-catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-6);
+}
+
+.music-catalog__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  text-decoration: none;
+  transition: transform var(--dur-slow) var(--ease-elegant),
+              box-shadow var(--dur-slow) var(--ease-elegant);
+  cursor: pointer;
+}
+
+.music-catalog__card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4),
+              0 0 0 1px var(--card-accent);
+}
+
+.music-catalog__card-cover {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+}
+
+.music-catalog__card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--dur-slower) var(--ease-elegant);
+}
+
+.music-catalog__card:hover .music-catalog__card-cover img {
+  transform: scale(1.05);
+}
+
+.music-catalog__card-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 7, 12, 0.5);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-elegant);
+}
+
+.music-catalog__card:hover .music-catalog__card-overlay {
+  opacity: 1;
+}
+
+.music-catalog__play-icon {
+  color: var(--color-accent-start);
+  filter: drop-shadow(0 4px 12px rgba(202, 165, 122, 0.6));
+  animation: playPulse 2s ease-in-out infinite;
+}
+
+.music-catalog__card-info {
+  padding: var(--space-5);
+}
+
+.music-catalog__card-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 400;
+  margin: 0 0 var(--space-2) 0;
+  color: var(--color-text);
+}
+
+.music-catalog__card-artist {
+  font-size: var(--fs-md);
+  color: var(--color-muted);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.music-catalog__card-desc {
+  font-size: var(--fs-sm);
+  color: color-mix(in oklab, var(--color-text) 60%, transparent);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.music-catalog__empty {
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--color-muted);
+  font-size: var(--fs-lg);
+}
+
+/* Music Player */
+.music-player {
+  position: relative;
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-block: var(--space-8);
+}
+
+.music-player__cover {
+  position: relative;
+  width: min(100%, 500px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6),
+              0 0 0 1px var(--accent-color);
+}
+
+.music-player__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.music-player__cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(6, 7, 12, 0.3) 50%,
+    rgba(6, 7, 12, 0.8) 100%
+  );
+}
+
+.music-player__info {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.music-player__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 300;
+  margin: 0 0 var(--space-3) 0;
+  background: linear-gradient(135deg, var(--accent-color), var(--color-accent-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.music-player__artist {
+  font-size: var(--fs-xl);
+  color: var(--color-muted);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.music-player__description {
+  font-size: var(--fs-md);
+  color: color-mix(in oklab, var(--color-text) 70%, transparent);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Lyrics */
+.music-player__lyrics {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+  min-height: 400px;
+}
+
+.music-player__lyric-line {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 300;
+  line-height: 1.5;
+  text-align: center;
+  padding: var(--space-4) var(--space-3);
+  margin-bottom: var(--space-3);
+  color: color-mix(in oklab, var(--color-text) 40%, transparent);
+  transition: all var(--dur-elegant) var(--ease-elegant);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.music-player__lyric-line:hover {
+  color: color-mix(in oklab, var(--color-text) 60%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 50%, transparent);
+}
+
+.music-player__lyric-line.is-active {
+  color: var(--accent-color);
+  font-weight: 400;
+  transform: scale(1.05);
+  text-shadow: 0 0 20px color-mix(in oklab, var(--accent-color) 30%, transparent);
+}
+
+.music-player__lyric-line.is-past {
+  color: color-mix(in oklab, var(--color-text) 25%, transparent);
+}
+
+/* Controls */
+.music-player__controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(12, 15, 24, 0.95);
+  backdrop-filter: blur(30px) saturate(180%);
+  border-top: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent);
+  padding: var(--space-5) var(--space-4);
+  z-index: 100;
+  transition: transform var(--dur-slow) var(--ease-elegant),
+              opacity var(--dur-slow) var(--ease-elegant);
+}
+
+.music-player__controls[data-visible="false"] {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.music-player__controls-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.music-player__play-btn {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-color), var(--color-accent-end));
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--dur-slow) var(--ease-spring);
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--accent-color) 40%, transparent);
+}
+
+.music-player__play-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px color-mix(in oklab, var(--accent-color) 60%, transparent);
+}
+
+.music-player__play-btn:active {
+  transform: scale(0.95);
+}
+
+.music-player__time {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.music-player__time-separator {
+  opacity: 0.5;
+}
+
+.music-player__seek-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.music-player__seek {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.music-player__seek::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(
+    to right,
+    var(--accent-color) 0%,
+    var(--accent-color) var(--progress),
+    color-mix(in oklab, var(--color-text) 15%, transparent) var(--progress),
+    color-mix(in oklab, var(--color-text) 15%, transparent) 100%
+  );
+  border-radius: 999px;
+}
+
+.music-player__seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.music-player__seek:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.music-player__seek::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: color-mix(in oklab, var(--color-text) 15%, transparent);
+  border-radius: 999px;
+}
+
+.music-player__seek::-moz-range-progress {
+  height: 6px;
+  background: var(--accent-color);
+  border-radius: 999px;
+}
+
+.music-player__seek::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.music-player__volume-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.music-player__mute-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--color-text) 20%, transparent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-text);
+  transition: all var(--dur-slow) var(--ease-elegant);
+}
+
+.music-player__mute-btn:hover {
+  background: color-mix(in oklab, var(--color-text) 10%, transparent);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.music-player__volume {
+  width: 100px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.music-player__volume::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--accent-color) 0%,
+    var(--accent-color) var(--volume),
+    color-mix(in oklab, var(--color-text) 15%, transparent) var(--volume),
+    color-mix(in oklab, var(--color-text) 15%, transparent) 100%
+  );
+  border-radius: 999px;
+}
+
+.music-player__volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Timing Laboratory */
+.timing-lab {
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  min-height: 600px;
+}
+
+.timing-lab__container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.timing-lab__controls {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.timing-lab__playback {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.timing-lab__play-btn {
+  padding: var(--space-3) var(--space-5);
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  border: none;
+  border-radius: var(--radius-md);
+  color: #0a0a0a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.timing-lab__play-btn:hover {
+  transform: translateY(-1px);
+}
+
+.timing-lab__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.timing-lab__seek {
+  flex: 1;
+  height: 8px;
+  -webkit-appearance: none;
+  background: color-mix(in oklab, var(--color-text) 15%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.timing-lab__seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--color-accent-start);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.timing-lab__mode-indicator {
+  padding: var(--space-4);
+  background: rgba(202, 165, 122, 0.1);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.timing-lab__actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.timing-lab__btn {
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--color-text) 20%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-elegant);
+}
+
+.timing-lab__btn:hover {
+  border-color: var(--color-accent-start);
+  background: color-mix(in oklab, var(--color-accent-start) 10%, transparent);
+}
+
+.timing-lab__btn--primary {
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  border-color: transparent;
+  color: #0a0a0a;
+  font-weight: 600;
+}
+
+.timing-lab__btn--mark {
+  background: var(--color-accent-start);
+  border-color: transparent;
+  color: #0a0a0a;
+  font-weight: 600;
+}
+
+.timing-lab__btn--success {
+  background: #4ade80;
+  border-color: transparent;
+  color: #0a0a0a;
+  font-weight: 600;
+}
+
+.timing-lab__content {
+  margin-top: var(--space-6);
+}
+
+.timing-lab__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timing-lab__label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.timing-lab__textarea {
+  width: 100%;
+  min-height: 400px;
+  padding: var(--space-4);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in oklab, var(--color-text) 15%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: var(--fs-md);
+  line-height: 1.8;
+  resize: vertical;
+}
+
+.timing-lab__textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-start);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent-start) 15%, transparent);
+}
+
+.timing-lab__hint {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.timing-lab__lyrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timing-lab__lyric-line {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--dur-fast) var(--ease-elegant);
+}
+
+.timing-lab__lyric-line.is-current {
+  background: rgba(202, 165, 122, 0.15);
+  border-color: var(--color-accent-start);
+  transform: scale(1.02);
+}
+
+.timing-lab__lyric-line.is-active {
+  background: rgba(202, 165, 122, 0.2);
+  border-color: var(--color-accent-start);
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(202, 165, 122, 0.2);
+}
+
+.timing-lab__lyric-line.has-timing {
+  border-color: color-mix(in oklab, var(--color-text) 10%, transparent);
+}
+
+.timing-lab__lyric-number {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.timing-lab__lyric-text {
+  color: var(--color-text);
+}
+
+.timing-lab__lyric-time {
+  font-size: var(--fs-sm);
+  color: var(--color-accent-start);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Admin Music */
+.admin-music {
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-4);
+}
+
+.admin-music__container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.admin-music__header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.admin-music__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 300;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.admin-music__subtitle {
+  font-size: var(--fs-lg);
+  color: var(--color-muted);
+}
+
+.admin-music__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--color-surface);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent);
+}
+
+.admin-music__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-music__field label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-music__field input,
+.admin-music__field textarea {
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid color-mix(in oklab, var(--color-text) 15%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: var(--fs-md);
+}
+
+.admin-music__field input:focus,
+.admin-music__field textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-start);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent-start) 15%, transparent);
+}
+
+.admin-music__field small {
+  font-size: var(--fs-sm);
+  color: var(--color-muted);
+}
+
+.admin-music__submit {
+  padding: var(--space-4) var(--space-6);
+  background: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  border: none;
+  border-radius: var(--radius-md);
+  color: #0a0a0a;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.admin-music__submit:hover {
+  transform: translateY(-2px);
+}
+
+.admin-music__back {
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in oklab, var(--color-text) 20%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  cursor: pointer;
+  margin-bottom: var(--space-5);
+  transition: all var(--dur-fast) var(--ease-elegant);
+}
+
+.admin-music__back:hover {
+  border-color: var(--color-accent-start);
+  background: color-mix(in oklab, var(--color-accent-start) 10%, transparent);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .music-catalog__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .music-player__cover {
+    width: 100%;
+  }
+
+  .music-player__title {
+    font-size: 2rem;
+  }
+
+  .music-player__lyric-line {
+    font-size: 1.5rem;
+  }
+
+  .music-player__controls-inner {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: var(--space-3);
+  }
+
+  .music-player__play-btn {
+    grid-row: 1 / 3;
+  }
+
+  .music-player__time {
+    grid-column: 2;
+  }
+
+  .music-player__seek-wrapper {
+    grid-column: 2;
+  }
+
+  .music-player__volume-group {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .timing-lab__actions {
+    flex-direction: column;
+  }
+
+  .timing-lab__btn {
+    width: 100%;
+  }
+}
