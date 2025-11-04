@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Song } from "@/lib/music-schema";
-import { formatTime, getActiveLyricIndex } from "@/lib/music";
+import { formatTime, getActiveLyricIndex } from "@/lib/music-utils";
 
 type MusicPlayerProps = {
   song: Song;
