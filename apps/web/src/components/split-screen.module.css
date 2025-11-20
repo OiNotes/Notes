@@ -1,0 +1,227 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+}
+
+.panel {
+  position: relative;
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 0 2vw;
+  /* Performance: Only animate opacity/transform/filter, never layout (flex/width) */
+  transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), filter 0.6s ease;
+}
+
+/* Backgrounds & Textures */
+.background {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.panel[data-side="left"] .background {
+  background: radial-gradient(circle at 30% 50%, #1c2029, #050608);
+}
+
+.panel[data-side="right"] .background {
+  background: radial-gradient(circle at 70% 50%, #2b221b, #050608);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.3);
+  transition: opacity 0.6s ease;
+}
+
+/* 
+   PERFORMANCE FIX: 
+   Instead of resizing panels (flex-grow) which triggers expensive layout calcs,
+   we simply dim and recede the NON-hovered panel. 
+   This runs at 60fps on the compositor thread.
+*/
+
+/* When container has a hover, fade out the OTHER panels */
+.container:has(.panel:hover) .panel:not(:hover) {
+  opacity: 0.3;
+  filter: grayscale(0.5);
+  transform: scale(0.98); 
+}
+
+/* The hovered panel stays full brightness */
+.panel:hover {
+  z-index: 10; /* Bring forward slightly */
+}
+
+.panel:hover .background {
+  transform: scale(1.05);
+  opacity: 0.8;
+}
+
+.panel:hover .overlay {
+  opacity: 0.1;
+}
+
+/* Content Styling */
+.content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 100%;
+  /* No layout shifts */
+}
+
+.kicker {
+  font-family: var(--font-text);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.6);
+  transform: translateY(10px);
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 3.5vw, 4.5rem); /* Reduced max size for stability */
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap; /* STOP TEXT JUMPING */
+  transition: color 0.3s ease;
+}
+
+.panel[data-side="left"] .title {
+  font-feature-settings: "ss01";
+}
+
+.panel[data-side="right"] .title {
+  font-style: italic;
+}
+
+.cta {
+  font-family: var(--font-text);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color-accent-start);
+  padding: 12px 24px;
+  border: 1px solid rgba(202, 165, 122, 0.4);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s;
+  background: rgba(0,0,0,0.2);
+}
+
+/* Hover reveal */
+.panel:hover .kicker,
+.panel:hover .cta {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Divider */
+.divider {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.dividerLine {
+  width: 1px;
+  flex: 1;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.dividerLogo {
+  padding: 24px 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+}
+
+/* Mobile / Tablet */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .panel {
+    padding: 0 20px;
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: row;
+  }
+  
+  .dividerLine {
+    height: 1px;
+    width: auto;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+  }
+
+  .dividerLogo {
+    padding: 0 20px;
+  }
+  
+  .container:has(.panel:hover) .panel:not(:hover) {
+    opacity: 1; /* No dimming on mobile */
+    filter: none;
+    transform: none;
+  }
+  
+  .kicker, .cta {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .title {
+    font-size: 2.2rem;
+    white-space: normal; /* Allow wrap on very small screens if needed */
+  }
+}
