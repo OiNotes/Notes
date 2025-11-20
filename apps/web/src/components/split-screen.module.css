@@ -82,6 +82,68 @@
   opacity: 0.1;
 }
 
+/* Sonic Pulse Equalizer Animation */
+.musicalNotes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40%; /* Confine to bottom area */
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  display: flex;
+  align-items: flex-end; /* Align bars to bottom */
+  justify-content: center;
+  gap: 20px; /* Wider spacing for elegance */
+  padding-bottom: 48px; /* Space from very bottom edge */
+  mix-blend-mode: screen;
+}
+
+.panel:hover .musicalNotes {
+  opacity: 1;
+}
+
+.musicalNotes span {
+  display: block;
+  width: 6px; /* Thinner, more refined lines */
+  height: 180px; /* Max potential height */
+  background: linear-gradient(to top, var(--color-electric-violet), var(--color-neon-cyan));
+  border-radius: 999px; /* Full pill shape */
+  box-shadow: 
+    0 0 30px var(--color-electric-violet),
+    0 0 60px var(--color-neon-cyan);
+  transform-origin: bottom;
+  transform: scaleY(0.15);
+  
+  /* Slow, liquid motion */
+  animation: equalizerLoop 4s infinite cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+@keyframes equalizerLoop {
+  0%, 100% {
+    transform: scaleY(0.15);
+    filter: hue-rotate(0deg) brightness(1) opacity(0.7);
+  }
+  50% {
+    transform: scaleY(0.85);
+    filter: hue-rotate(20deg) brightness(1.2) opacity(1);
+  }
+}
+
+.panel:hover .musicalNotes span {
+  animation-play-state: running;
+}
+
+/* Slow, undulating wave pattern */
+.musicalNotes span:nth-child(1) { animation-duration: 4.2s; animation-delay: 0.0s; }
+.musicalNotes span:nth-child(2) { animation-duration: 3.8s; animation-delay: 0.5s; }
+.musicalNotes span:nth-child(3) { animation-duration: 4.5s; animation-delay: 0.2s; }
+.musicalNotes span:nth-child(4) { animation-duration: 3.6s; animation-delay: 0.7s; }
+.musicalNotes span:nth-child(5) { animation-duration: 4.0s; animation-delay: 0.3s; }
+
+
 /* Content Styling */
 .content {
   position: relative;

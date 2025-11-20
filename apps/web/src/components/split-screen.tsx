@@ -25,6 +25,13 @@ export function SplitScreen() {
             <Link href="/music" className={styles.panel} data-side="right">
                 <div className={styles.background} />
                 <div className={styles.overlay} />
+                <div className={styles.musicalNotes}>
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                </div>
                 <div className={styles.content}>
                     <span className={styles.kicker}>Art & Sound</span>
                     <h2 className={styles.title}>Music Translation</h2>

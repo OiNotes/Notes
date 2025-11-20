@@ -10,6 +10,11 @@
   --color-accent-start: #caa57a;
   --color-accent-end: #a77a4d;
   --color-accent-ink: #f8f4ec;
+  
+  /* Energy Palette */
+  --color-electric-violet: #7b2bf9;
+  --color-neon-cyan: #00f0ff;
+  --color-acid-lime: #ccff00;
 
   /* Typography */
   --font-display: var(--font-fraunces, "Fraunces", "Times New Roman", serif);
