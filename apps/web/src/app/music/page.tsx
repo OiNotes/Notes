@@ -1,740 +1,395 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import styles from './music.module.css';
+import React, { useState, useEffect } from 'react';
 
-// --- ICONS (SVG Helpers to avoid dependencies) ---
-const Icons = {
-  Play: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z" /></svg>,
-  Pause: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg>,
-  SkipBack: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 20L9 12l10-8v16z" /><line x1="5" y1="19" x2="5" y2="5" /></svg>,
-  SkipForward: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 4l10 8-10 8V4z" /><line x1="19" y1="5" x2="19" y2="19" /></svg>,
-  Mic: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>,
-  Music: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>,
-  Upload: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>,
-  Save: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>,
-  ChevronLeft: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>,
-  Undo: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg>
-};
+console.log('[MusicApp] Module Loaded');
 
-// --- CONSTANTS ---
-type SongStatus = 'draft' | 'published';
+// --- ICONS ---
+const Play = ({ size = 24, fill = "none", className = "" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
 
-type Song = {
-  id: string;
-  title: string;
-  artist: string;
-  lyrics: LyricLine[];
-  audioSrc: string | null;
-  status: SongStatus;
-};
+const Pause = ({ size = 24, fill = "none", className = "" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
+  </svg>
+);
 
-const INITIAL_SONGS: Song[] = [
+const X = ({ size = 24, className = "" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const SkipBack = ({ size = 24, className = "" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="19 20 9 12 19 4 19 20" />
+    <line x1="5" y1="19" x2="5" y2="5" />
+  </svg>
+);
+
+const SkipForward = ({ size = 24, className = "" }: any) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="5 4 15 12 5 20 5 4" />
+    <line x1="19" y1="5" x2="19" y2="19" />
+  </svg>
+);
+
+// --- ДАННЫЕ ---
+const TRACKS = [
   {
-    id: 'feelings_gone',
-    title: "Feeling's Gone",
-    artist: "The Cat Empire",
+    id: 1,
+    artist: "The Weeknd",
+    title: "After Hours",
+    color: "from-red-900 via-red-950 to-black",
     lyrics: [
-      { id: 1, original: "This is a demo of the visual player", translation: "Это демо визуального плеера", time: 0, isSet: true },
-      { id: 2, original: "Upload your own track in the Studio", translation: "Загрузите свой трек в Студии", time: 5, isSet: true },
-      { id: 3, original: "To see the full cinematic effect", translation: "Чтобы увидеть полный кино-эффект", time: 10, isSet: true }
-    ], 
-    audioSrc: null,
-    status: 'published'
+      "Я снова остался один...",
+      "Огни города зовут меня,",
+      "Но без тебя они тускнеют.",
+      "Я потерял веру в свои сны,",
+      "Когда ты ушла, забрав рассвет.",
+      "Прости, что разбил твое сердце,",
+      "В час, когда закрываются бары."
+    ]
+  },
+  {
+    id: 2,
+    artist: "Lana Del Rey",
+    title: "Old Money",
+    color: "from-blue-900 via-slate-900 to-black",
+    lyrics: [
+      "Голубая гортензия,",
+      "Холодные наличные, божественно...",
+      "Я жду тебя на углу,",
+      "В своем лучшем платье.",
+      "Если ты позовешь - я прибегу,",
+      "Куда бы ты ни ушел.",
+      "Любовь моя..."
+    ]
+  },
+  {
+    id: 3,
+    artist: "Arctic Monkeys",
+    title: "Do I Wanna Know?",
+    color: "from-zinc-800 via-neutral-900 to-black",
+    lyrics: [
+      "Ты уже нашла оправдание?",
+      "Чтобы остаться или уйти?",
+      "Ползком возвращаюсь к тебе,",
+      "Могу ли я войти?",
+      "Ночи созданы, чтобы говорить то,",
+      "Что не скажешь утром."
+    ]
+  },
+  {
+    id: 4,
+    artist: "Frank Ocean",
+    title: "Pink + White",
+    color: "from-fuchsia-900 via-purple-950 to-black",
+    lyrics: [
+      "Так оно и есть,",
+      "Точно так, как ты видишь.",
+      "Земля под ногами, небо в огне,",
+      "Ты показала мне любовь,",
+      "Которая не может умереть,",
+      "Даже если мы перестанем дышать."
+    ]
   }
 ];
 
-const DEFAULT_SONG = INITIAL_SONGS[0];
+// --- КОМПОНЕНТЫ ---
 
-// --- TYPES ---
-type LyricLine = {
-  id: number;
-  original: string;
-  translation: string;
-  time: number;
-  isSet: boolean;
+const Tonearm = ({ isActive }: { isActive: boolean }) => {
+  const rotation = isActive ? 32 : 0;
+  return (
+    <div 
+      className="absolute top-[10%] right-[8%] w-24 h-80 z-30 pointer-events-none transition-transform duration-[2000ms] ease-in-out origin-[50%_15%]"
+      style={{ transform: `rotate(${rotation}deg)` }}
+    >
+      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-gradient-to-b from-[#333] to-[#111] shadow-[0_4px_10px_rgba(0,0,0,0.5)] flex items-center justify-center border border-white/5">
+         <div className="w-14 h-14 rounded-full bg-[#1a1a1a] shadow-inner border border-black flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 shadow-sm" />
+         </div>
+      </div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-12 bg-gradient-to-r from-[#222] via-[#444] to-[#222] rounded-sm shadow-lg border-t border-white/10" />
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 w-3 h-56 bg-gradient-to-r from-gray-300 via-gray-100 to-gray-400 shadow-xl rounded-full" />
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-8 h-14 bg-[#1a1a1a] rounded-sm border border-white/10 shadow-xl transform -rotate-6 origin-top">
+         <div className="absolute -right-2 top-4 w-4 h-1 bg-gray-400 rounded-full" />
+         <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-2 bg-amber-200 shadow-[0_0_5px_rgba(251,191,36,0.5)]" />
+      </div>
+    </div>
+  );
 };
 
-type Meta = {
-  id?: string; // Added ID to track drafts correctly
-  title: string;
-  artist: string;
-  status: SongStatus;
+const VinylRecord = ({ track, isPlaying }: { track: typeof TRACKS[0], isPlaying: boolean }) => {
+  return (
+    <div className={`relative w-full h-full rounded-full shadow-2xl flex items-center justify-center border border-[#111] bg-black transition-all duration-1000`}>
+      <div className={`absolute inset-0 w-full h-full rounded-full bg-[conic-gradient(from_0deg,#111_0deg,#1a1a1a_90deg,#111_180deg,#1a1a1a_270deg,#111_360deg)] opacity-40 ${isPlaying ? 'animate-spin-slow' : ''}`} 
+           style={{ animationDuration: '1.8s' }} />
+      <div className={`absolute inset-0 w-full h-full rounded-full bg-gradient-to-br from-gray-800/20 via-black to-gray-900/20 ${isPlaying ? 'animate-spin-slow' : ''}`} 
+           style={{ animationDuration: '4s' }}>
+        <div className="absolute inset-0 rounded-full opacity-60" 
+             style={{ background: 'repeating-radial-gradient(#151515 0, #0a0a0a 1px, transparent 2px, transparent 3px)' }} />
+        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/5 to-transparent rotate-45 mix-blend-overlay" />
+      </div>
+      <div className={`absolute z-10 w-[35%] h-[35%] rounded-full bg-gradient-to-br ${track.color} shadow-inner flex items-center justify-center border border-white/5 ${isPlaying ? 'animate-spin-slow' : ''}`}
+           style={{ animationDuration: '4s' }}>
+        <div className="w-2 h-2 bg-black rounded-full border border-gray-600" />
+        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/10 to-transparent opacity-50" />
+      </div>
+    </div>
+  );
 };
 
-export default function MusicPage() {
-  // --- VIEW STATE ---
-  const [view, setView] = useState<'playlist' | 'player' | 'studio'>('playlist');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [secretClicks, setSecretClicks] = useState(0);
-  const [password, setPassword] = useState('');
+const Turntable = ({ track, isPlaying, isTonearmMoving }: { track: typeof TRACKS[0], isPlaying: boolean, isTonearmMoving: boolean }) => {
+  return (
+    <div className="relative w-[340px] h-[340px] md:w-[500px] md:h-[420px] bg-[#181818] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.7)] border-t border-white/5 flex items-center justify-center shrink-0 transform transition-transform duration-1000">
+      <div className="absolute inset-0 rounded-[2rem] opacity-30 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] mix-blend-overlay pointer-events-none" />
+      <div className="absolute bottom-6 left-6 w-12 h-12 rounded-full bg-[#111] shadow-[inset_0_1px_3px_rgba(0,0,0,1),0_1px_0_rgba(255,255,255,0.1)] flex items-center justify-center">
+        <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'bg-gray-700'}`} />
+      </div>
+      <div className="absolute bottom-6 right-8 flex flex-col gap-2">
+         <div className="w-1 h-8 bg-[#222] rounded-full relative overflow-hidden">
+            <div className="absolute bottom-0 left-0 w-full h-1/2 bg-amber-500" />
+         </div>
+         <span className="text-[8px] text-gray-500 font-mono uppercase">Pitch</span>
+      </div>
+      <div className="relative w-[280px] h-[280px] md:w-[360px] md:h-[360px] rounded-full bg-[#0a0a0a] shadow-[0_5px_15px_rgba(0,0,0,0.8)] border-4 border-[#151515] flex items-center justify-center">
+        <div className="absolute inset-2 rounded-full bg-[#111]" />
+        <div className="w-[92%] h-[92%]">
+           <VinylRecord track={track} isPlaying={isPlaying} />
+        </div>
+      </div>
+      <Tonearm isActive={isTonearmMoving} />
+    </div>
+  );
+};
 
-  // --- DATA STATE ---
-  const [songs, setSongs] = useState<Song[]>(INITIAL_SONGS);
-
-  // --- SONG STATE ---
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
-  const [meta, setMeta] = useState<Meta>({ 
-      id: DEFAULT_SONG.id,
-      title: DEFAULT_SONG.title, 
-      artist: DEFAULT_SONG.artist,
-      status: DEFAULT_SONG.status 
-  });
-  const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  
-  // --- PLAYER STATE ---
+export default function MusicApp() {
+  const [activeTrack, setActiveTrack] = useState<typeof TRACKS[0] | null>(null);
+  const [isTonearmMoving, setIsTonearmMoving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const [immersiveMode, setImmersiveMode] = useState(false);
+  const [currentLyricIndex, setCurrentLyricIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
 
-  // --- STUDIO STATE ---
-  const [rawOriginal, setRawOriginal] = useState("");
-  const [rawTranslation, setRawTranslation] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordIndex, setRecordIndex] = useState(0);
-
-  // --- EFFECTS ---
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    console.log('[MusicApp] Mounted.');
+  }, []);
 
-    const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
-    const onEnded = () => {
-      setIsPlaying(false);
-      setIsRecording(false);
-    };
-
-    audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', onEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', onEnded);
-    };
-  }, [audioSrc]);
-
-  // Auto-scroll logic (Cinematic Center)
-  useEffect(() => {
-    if (view === 'player' && lyrics.length > 0 && isPlaying) {
-      const activeIndex = lyrics.findIndex((line, i) => {
-        const nextLine = lyrics[i + 1];
-        return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
-      });
-
-      if (activeIndex !== -1 && lyricsContainerRef.current) {
-        const children = lyricsContainerRef.current.children;
-        if (children[activeIndex]) {
-            children[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
-    }
-  }, [currentTime, view, lyrics, isPlaying]);
-
-  // Keyboard controls for Studio
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (view !== 'studio' || !isRecording) return;
-      if (e.code === 'Space') { e.preventDefault(); recordTiming(); }
-      else if (e.code === 'ArrowLeft') { e.preventDefault(); undoLastLine(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRecording, view, recordIndex, lyrics]);
-
-  // --- HANDLERS ---
-
-  // Header Logic (Navigation & Admin Trigger)
-  const handleHeaderClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // If in player or studio, header acts as "Back"
-    if (view !== 'playlist') {
-        setView('playlist');
-        return;
-    }
-    
-    // Secret Admin Trigger (only on playlist view)
-    if (isAdmin) {
-        setView('studio');
-        return;
-    }
-    
-    setSecretClicks(prev => {
-        const next = prev + 1;
-        if (next >= 5) {
-            setShowAuth(true);
-            return 0;
-        }
-        return next;
-    });
-  };
-  
-  const handleAuth = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (password === '1111') {
-          setIsAdmin(true);
-          setShowAuth(false);
-          setView('studio');
-      } else {
-          alert('Incorrect Password');
-          setPassword('');
-      }
-  };
-
-  const loadSong = (song: Song) => {
-      setMeta({ id: song.id, title: song.title, artist: song.artist, status: song.status });
-      setLyrics(song.lyrics);
-      setAudioSrc(song.audioSrc);
-      setView('player');
-      // Auto-play when loading user song
-      if (audioRef.current) {
-          setTimeout(() => {
-             // Optional: auto-play logic could go here
-          }, 100);
-      }
-  };
-
-  const openInStudio = (song: Song) => {
-      setMeta({ id: song.id, title: song.title, artist: song.artist, status: song.status });
-      setLyrics(song.lyrics);
-      setAudioSrc(song.audioSrc);
-      
-      const orig = song.lyrics.map(l => l.original).join('\n');
-      const trans = song.lyrics.map(l => l.translation).join('\n');
-      setRawOriginal(orig);
-      setRawTranslation(trans);
-      
-      setView('studio');
-  };
-
-  // File Management
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setAudioSrc(url);
-      if (meta.title === DEFAULT_SONG.title) {
-          setMeta(prev => ({ ...prev, title: file.name.replace(/\.[^/.]+$/, "") }));
-      }
-    }
-  };
-
-  const handleJsonImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const data = JSON.parse(event.target?.result as string);
-            if (data.meta) setMeta(data.meta);
-            if (data.lyrics && Array.isArray(data.lyrics)) {
-                setLyrics(data.lyrics);
-                const orig = data.lyrics.map((l: any) => l.original).join('\n');
-                const trans = data.lyrics.map((l: any) => l.translation).join('\n');
-                setRawOriginal(orig);
-                setRawTranslation(trans);
-            }
-            alert("Loaded successfully!");
-        } catch (err) {
-            alert("Error parsing JSON");
-        }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-  const exportData = () => {
-    const dataStr = JSON.stringify({ meta, lyrics }, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${meta.title || 'song'}.json`;
-    a.click();
-  };
-
-  // Player Controls
   const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-          audioRef.current.pause();
-      } else {
-          const playPromise = audioRef.current.play();
-          if (playPromise !== undefined) {
-              playPromise.catch(error => {
-                  console.warn("Playback aborted:", error);
-              });
-          }
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = Number(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
-  };
-
-  const formatTime = (time: number) => {
-    const min = Math.floor(time / 60);
-    const sec = Math.floor(time % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  };
-
-  // Studio Logic
-  const prepareForRecording = () => {
-    const origLines = rawOriginal.split('\n').filter(l => l.trim() !== '');
-    const transLines = rawTranslation.split('\n').filter(l => l.trim() !== '');
-    const maxLen = Math.max(origLines.length, transLines.length);
-    
-    const newLyrics: LyricLine[] = [];
-    for (let i = 0; i < maxLen; i++) {
-      newLyrics.push({
-        id: i,
-        original: origLines[i] || '',
-        translation: transLines[i] || '',
-        time: 0,
-        isSet: false
-      });
-    }
-    setLyrics(newLyrics);
-    setRecordIndex(0);
-    setCurrentTime(0);
-    if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-             playPromise.catch(error => console.warn("Playback aborted:", error));
-        }
+    console.log('[MusicApp] Toggle Play');
+    if (isPlaying || isTonearmMoving) {
+      setIsPlaying(false);
+      setIsTonearmMoving(false);
+      setImmersiveMode(false);
+    } else {
+      setIsTonearmMoving(true);
+      setTimeout(() => {
         setIsPlaying(true);
+      }, 2000);
     }
-    setIsRecording(true);
   };
 
-  const recordTiming = () => {
-    if (recordIndex >= lyrics.length) {
-        setIsRecording(false);
-        setIsPlaying(false);
-        audioRef.current?.pause();
-        return;
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isPlaying) {
+      timer = setTimeout(() => {
+        setImmersiveMode(true);
+      }, 5000);
     }
-    const currentAudioTime = audioRef.current ? audioRef.current.currentTime : 0;
-    setLyrics(prev => {
-      const updated = [...prev];
-      updated[recordIndex] = { ...updated[recordIndex], time: currentAudioTime, isSet: true };
-      return updated;
-    });
-    setRecordIndex(prev => prev + 1);
-  };
+    return () => clearTimeout(timer);
+  }, [isPlaying]);
 
-  const undoLastLine = () => {
-      if (recordIndex > 0) {
-          const newIndex = recordIndex - 1;
-          setRecordIndex(newIndex);
-          if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 2);
-          setLyrics(prev => {
-              const updated = [...prev];
-              updated[newIndex] = { ...updated[newIndex], isSet: false }; 
-              return updated;
-          });
-      }
-  };
-
-  const handleSaveDraft = () => {
-      exportData(); // Reuse export for now
-      alert("Draft saved locally!");
-  };
-
-  const handlePublish = () => {
-      // Validation
-      if (!meta.title.trim() || !meta.artist.trim()) {
-          alert("Error: Title and Artist are required to publish.");
-          return;
-      }
-      
-      // Create updated object
-      const updatedStatus = 'published';
-      setMeta(prev => ({ ...prev, status: updatedStatus }));
-      
-      // Update 'Database' (Local State)
-      setSongs(prev => {
-          // 1. Try to find by ID first (most reliable)
-          let existingIndex = prev.findIndex(s => s.id === meta.id);
-          
-          // 2. Fallback: try to find by title if ID is missing (legacy/newly created)
-          if (existingIndex === -1) {
-              existingIndex = prev.findIndex(s => s.title === meta.title);
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPlaying && activeTrack) {
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 100) {
+            setIsPlaying(false); 
+            setIsTonearmMoving(false);
+            setImmersiveMode(false);
+            return 0;
           }
+          return prev + 0.2;
+        });
+        setCurrentLyricIndex((prev) => {
+             const totalLyrics = activeTrack.lyrics.length;
+             const lyricsPerPercent = 100 / totalLyrics;
+             const newIndex = Math.floor(progress / lyricsPerPercent);
+             return Math.min(newIndex, totalLyrics - 1);
+        });
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, activeTrack, progress]);
 
-          const newSongData: Song = {
-              id: existingIndex !== -1 ? prev[existingIndex].id : (meta.id || Date.now().toString()),
-              title: meta.title,
-              artist: meta.artist,
-              lyrics: lyrics,
-              audioSrc: audioSrc,
-              status: updatedStatus
-          };
-          
-          if (existingIndex !== -1) {
-              const updated = [...prev];
-              updated[existingIndex] = newSongData;
-              return updated;
-          } else {
-              return [...prev, newSongData];
-          }
-      });
-      
-      // Feedback and Redirect
-      // Don't use alert, it breaks the flow. Just change view.
-      // alert("Success: Track Published!"); 
-      if (view === 'studio') {
-         // Stay in studio but show success state via button change
-      }
+  const handleSelectTrack = (track: typeof TRACKS[0]) => {
+    console.log('[MusicApp] Track Selected:', track.title);
+    setActiveTrack(track);
+    setIsPlaying(false);
+    setIsTonearmMoving(false);
+    setImmersiveMode(false);
+    setProgress(0);
   };
 
-  // --- RENDER ---
-
-  // Filter Songs
-  const visibleSongs = songs.filter(s => isAdmin || s.status === 'published');
+  const handleClosePlayer = () => {
+    setIsPlaying(false);
+    setIsTonearmMoving(false);
+    setImmersiveMode(false);
+    setActiveTrack(null);
+  };
 
   return (
-    <div className={`${styles.container} ${isPlaying && view === 'player' ? styles.cinematic : ''}`}>
-      <audio ref={audioRef} src={audioSrc || undefined} />
-      
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.headerControls}>
-             {/* Left controls can be empty now as header acts as back */}
-        </div>
-        <button 
-            type="button"
-            className={styles.brand} 
-            onClick={handleHeaderClick}
-            title={view === 'playlist' ? "Admin Access (5 clicks)" : "Back to Playlist"}
-        >
-             {view === 'playlist' ? "OINOTS" : "← OINOTS"}
-        </button>
-        <div className={styles.headerControls}>
-             {view === 'studio' && (
-                 <button onClick={() => setView('player')} className={styles.btnControl}>
-                     Preview
-                 </button>
-             )}
-             {isAdmin && view !== 'studio' && (
-                 <button onClick={() => setView('studio')} className={styles.btnControl}>
-                     <Icons.Mic />
-                 </button>
-             )}
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className={styles.viewContainer}>
+    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black overflow-x-hidden overflow-y-auto" style={{ backgroundColor: '#050505' }}>
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500&display=swap');
         
-        {/* PLAYLIST VIEW */}
-        {view === 'playlist' && (
-            <div className={styles.playlistView}>
-                <h1 className={styles.playlistTitle}>Select Track</h1>
-                <div className={styles.grid}>
-                    {visibleSongs.map((song) => (
-                        <div 
-                            key={song.id} 
-                            className={styles.card} 
-                            onClick={() => isAdmin ? openInStudio(song) : loadSong(song)}
-                        > 
-                            <div className={styles.vinyl}>
-                                <div className={styles.vinylIcon}><Icons.Music /></div>
-                            </div>
-                            <div className={styles.cardMeta}>
-                                <h3>
-                                    {song.title}
-                                    {song.status === 'draft' && (
-                                        <span style={{ 
-                                            fontSize: '0.6em', 
-                                            background: '#333', 
-                                            color: '#aaa', 
-                                            padding: '2px 6px', 
-                                            borderRadius: '4px', 
-                                            marginLeft: '8px',
-                                            verticalAlign: 'middle'
-                                        }}>
-                                            DRAFT
-                                        </span>
-                                    )}
-                                </h3>
-                                <p>{song.artist}</p>
-                            </div>
-                        </div>
-                    ))}
-                    
-                    {/* New Track Card for Admin */}
-                    {isAdmin && (
-                         <div 
-                            className={styles.card} 
-                            style={{ borderStyle: 'dashed', opacity: 0.5 }}
-                            onClick={() => {
-                                setMeta({ id: Date.now().toString(), title: '', artist: '', status: 'draft' });
-                                setLyrics([]);
-                                setRawOriginal('');
-                                setRawTranslation('');
-                                setAudioSrc(null);
-                                setView('studio');
-                            }}
-                         >
-                            <div className={styles.vinyl} style={{ background: 'transparent', border: 'none' }}>
-                                <div className={styles.vinylIcon}><Icons.Upload /></div>
-                            </div>
-                            <div className={styles.cardMeta}>
-                                <h3>New Track</h3>
-                                <p>Create from scratch</p>
-                            </div>
-                        </div>
-                    )}
+        .font-lyrics { font-family: 'Cormorant Garamond', serif; }
+        .font-sans { font-family: 'Inter', sans-serif; }
+        
+        .animate-spin-slow { animation: spin 6s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+
+      {/* --- ГЛАВНАЯ: КАТАЛОГ --- */}
+      <div className={`transition-all duration-1000 ease-out ${activeTrack ? 'opacity-0 scale-95 pointer-events-none blur-md fixed inset-0' : 'opacity-100 scale-100 relative'}`} style={{ minHeight: '100vh', padding: '20px' }}>
+        
+        <header className="px-8 py-16 md:py-24 text-center relative z-10">
+          <p className="text-amber-500/80 tracking-[0.2em] text-xs uppercase mb-4 font-sans">Archive</p>
+          <h1 className="text-5xl md:text-7xl font-lyrics italic bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500">
+            Music Translations
+          </h1>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-6 pb-32 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-20">
+            {TRACKS.map((track) => (
+              <div 
+                key={track.id}
+                onClick={() => handleSelectTrack(track)}
+                className="group cursor-pointer relative flex items-center p-4 rounded-3xl hover:bg-white/[0.02] transition-colors"
+              >
+                {/* 1. Конверт */}
+                <div className="relative z-20 w-48 h-48 bg-[#0f0f0f] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-sm flex flex-col justify-between p-5 border border-white/5 group-hover:-translate-x-4 transition-transform duration-700 ease-out">
+                  <div className={`w-full h-full bg-gradient-to-br ${track.color} opacity-20 absolute inset-0 blur-xl`} />
+                  <div className="relative z-10 text-[10px] text-gray-500 font-mono uppercase tracking-widest">Stereo</div>
+                  <div className="relative z-10 font-lyrics text-2xl text-gray-200 leading-none">{track.artist}</div>
                 </div>
+
+                {/* 2. Пластинка */}
+                <div className="absolute left-20 z-10 w-40 h-40 transition-transform duration-700 ease-out group-hover:translate-x-24 group-hover:rotate-12">
+                  <VinylRecord track={track} isPlaying={false} />
+                </div>
+
+                {/* 3. Название */}
+                <div className="ml-40 pl-8 flex flex-col justify-center border-l border-white/5 h-32 group-hover:border-amber-500/30 transition-colors">
+                  <h3 className="text-4xl font-lyrics italic text-gray-400 group-hover:text-white transition-colors duration-300">
+                    {track.title}
+                  </h3>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+
+
+      {/* --- ПРОИГРЫВАТЕЛЬ --- */}
+      {activeTrack && (
+        <div className="fixed inset-0 z-[100] overflow-hidden bg-[#050505]">
+          
+          {/* ФОНОВЫЙ ЦВЕТ */}
+          <div className={`absolute inset-0 bg-gradient-to-br ${activeTrack.color} transition-all duration-[2000ms] 
+            ${immersiveMode ? 'opacity-0' : 'opacity-20 blur-[120px]'}`} />
+            
+          {/* ТОНЕР */}
+          <div className={`absolute inset-0 bg-black/95 transition-opacity duration-[2000ms] ease-in-out pointer-events-none
+            ${immersiveMode ? 'opacity-100' : 'opacity-0'}`} />
+
+          {/* CLOSE BUTTON */}
+          <button 
+            onClick={handleClosePlayer}
+            className={`absolute top-8 right-8 z-50 p-3 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-all duration-1000
+              ${immersiveMode ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}
+          >
+            <X size={24} />
+          </button>
+
+
+          {/* КОНТЕНТ */}
+          <div className="relative w-full h-full flex items-center justify-center px-4">
+            
+            {/* СЕКЦИЯ ВЕРТУШКИ */}
+            <div className={`absolute flex flex-col items-center transition-all duration-[2000ms] ease-in-out
+               ${immersiveMode ? 'opacity-0 scale-110 blur-lg pointer-events-none' : 'opacity-100 scale-100 blur-0'}`}>
+               
+              <Turntable track={activeTrack} isPlaying={isPlaying} isTonearmMoving={isTonearmMoving} />
+              
+              <div className="mt-12 text-center space-y-2">
+                 <h2 className="text-5xl font-lyrics italic text-white">{activeTrack.title}</h2>
+                 <p className="text-amber-500 uppercase tracking-[0.3em] text-xs">{activeTrack.artist}</p>
+              </div>
             </div>
-        )}
 
-        {/* PLAYER VIEW */}
-        {view === 'player' && (
-            <div className={styles.playerView}>
-                <div className={styles.lyricsContainer} ref={lyricsContainerRef}>
-                     {lyrics.length === 0 ? (
-                         <div style={{ opacity: 0.5, marginTop: '100px' }}>
-                             <h3 style={{marginBottom: '16px'}}>No lyrics loaded</h3>
-                             {!audioSrc && <p>No audio source available for this track.</p>}
-                         </div>
-                     ) : (
-                         lyrics.map((line, i) => {
-                             // Find active line
-                             const activeIndex = lyrics.findIndex((l, idx) => {
-                                const next = lyrics[idx+1];
-                                return currentTime >= l.time && (!next || currentTime < next.time);
-                             });
-                             const isActive = i === activeIndex;
 
-                             return (
-                                 <div 
-                                    key={line.id} 
-                                    className={`${styles.lyricLine} ${isActive ? styles.active : ''}`}
-                                    onClick={() => {
-                                        if (audioRef.current) {
-                                            audioRef.current.currentTime = line.time;
-                                            setCurrentTime(line.time);
-                                            if (!isPlaying) {
-                                                const playPromise = audioRef.current.play();
-                                                if (playPromise !== undefined) {
-                                                    playPromise.catch(err => console.warn("Playback aborted:", err));
-                                                }
-                                                setIsPlaying(true);
-                                            }
-                                        }
-                                    }}
-                                 >
-                                     <h2>{line.translation || line.original}</h2>
-                                 </div>
-                             );
-                         })
-                     )}
+            {/* СЕКЦИЯ ТЕКСТА */}
+            <div className={`relative z-50 w-full max-w-3xl text-center transition-all duration-[1000ms]
+               ${immersiveMode 
+                 ? 'opacity-100 translate-y-0 delay-[2000ms]' 
+                 : 'opacity-0 translate-y-20 pointer-events-none delay-0'}`}>
+               
+              {isPlaying && (
+                <div className="space-y-12">
+                   <p className="text-2xl text-white/20 font-lyrics italic blur-[1px] transition-all duration-700">
+                     {activeTrack.lyrics[currentLyricIndex - 1] || "..."}
+                   </p>
+
+                   <p className="text-5xl md:text-7xl font-lyrics italic leading-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                      "{activeTrack.lyrics[currentLyricIndex]}"
+                   </p>
+                   
+                   <p className="text-2xl text-white/20 font-lyrics italic blur-[1px] transition-all duration-700">
+                     {activeTrack.lyrics[currentLyricIndex + 1] || "..."}
+                   </p>
                 </div>
-
-                <div className={styles.controls}>
-                    {/* Progress Bar Integrated */}
-                    <div className={styles.progressBar}>
-                        <input 
-                            type="range" min="0" max={duration || 0} value={currentTime} onChange={seek}
-                            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10, width: '100%', height: '100%' }}
-                        />
-                        <div className={styles.progressFill} style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} />
-                    </div>
-
-                    <div className={styles.buttons}>
-                        <button onClick={() => { if(audioRef.current) audioRef.current.currentTime -= 10 }} className={styles.btnControl}><Icons.SkipBack /></button>
-                        
-                        {!audioSrc ? (
-                            <div style={{ color: '#555', fontSize: '0.8rem' }}>NO AUDIO</div>
-                        ) : (
-                            <button onClick={togglePlay} className={styles.btnPlay}>
-                                {isPlaying ? <Icons.Pause /> : <Icons.Play />}
-                            </button>
-                        )}
-                        
-                        <button onClick={() => { if(audioRef.current) audioRef.current.currentTime += 10 }} className={styles.btnControl}><Icons.SkipForward /></button>
-                    </div>
-                </div>
+              )}
             </div>
-        )}
 
-        {/* STUDIO VIEW (Admin) */}
-        {view === 'studio' && (
-            <div className={styles.studioContainer}>
-                <div className={styles.studioHeader}>
-                    <h2 style={{ fontFamily: 'var(--font-display)' }}>Studio</h2>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <label className={styles.btnPrimary} style={{ background: '#333', fontSize: '0.8rem' }}>
-                            <Icons.Upload /> JSON
-                            <input type="file" accept=".json" hidden onChange={handleJsonImport} />
-                        </label>
-                        <button onClick={exportData} className={styles.btnPrimary} style={{ background: '#333', fontSize: '0.8rem' }}><Icons.Save /> JSON</button>
-                    </div>
-                </div>
-                
-                {isRecording ? (
-                     <div className={styles.recorderOverlay}>
-                        <div className={styles.recIndicator}>REC</div>
-                        <div className={styles.recorderCurrent}>
-                            {/* Previous Line Context (Single, Large) */}
-                            <div className={styles.recorderContext}>
-                                {lyrics[recordIndex - 1] && (
-                                    <div>
-                                        <h3>{lyrics[recordIndex - 1].original}</h3>
-                                    </div>
-                                )}
-                            </div>
 
-                            {/* Active Line (Massive) */}
-                            <div className={styles.recorderActiveLine}>
-                                <h2>
-                                    {lyrics[recordIndex]?.original || <span style={{color: 'var(--color-acid-lime)'}}>Done!</span>}
-                                </h2>
-                                <p style={{ fontSize: '2rem', color: 'var(--color-electric-violet)', opacity: 0.9, fontWeight: 500 }}>
-                                    {lyrics[recordIndex]?.translation}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div className={styles.controls} style={{ background: '#111', padding: '20px 40px' }}>
-                            <div className={styles.progressBar}>
-                                <div className={styles.progressFill} style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} />
-                            </div>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
-                                {/* Left Actions */}
-                                <div style={{ display: 'flex', gap: '16px' }}>
-                                    <button onClick={handleSaveDraft} className={styles.btnAction}>
-                                        <Icons.Save /> Save Draft
-                                    </button>
-                                    {meta.status !== 'published' && (
-                                        <button onClick={handlePublish} className={`${styles.btnAction} ${styles.btnPublish}`}>
-                                            <Icons.Upload /> Publish
-                                        </button>
-                                    )}
-                                </div>
+            {/* КОНТРОЛЛЕРЫ */}
+            <div className={`absolute bottom-12 w-full max-w-xl px-6 transition-all duration-[1500ms]
+              ${immersiveMode ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+              
+              <div className="w-full bg-white/5 h-[1px] rounded-full mb-8 flex items-center">
+                <div 
+                  className="bg-amber-500 h-[2px] rounded-full relative shadow-[0_0_10px_rgba(245,158,11,0.8)] transition-all duration-300 ease-linear"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
 
-                                {/* Center Controls */}
-                                <div className={styles.buttons}>
-                                    <button onClick={undoLastLine} className={styles.btnControl} title="Undo (Left Arrow)"><Icons.Undo /></button>
-                                    <button 
-                                        onClick={recordTiming} 
-                                        className={styles.btnPlay}
-                                        style={{ width: '120px', borderRadius: '16px', background: 'var(--color-electric-violet)', color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}
-                                    >
-                                        SPACE
-                                    </button>
-                                    <button onClick={togglePlay} className={styles.btnControl}>{isPlaying ? <Icons.Pause /> : <Icons.Play />}</button>
-                                </div>
-
-                                {/* Right Spacer to balance layout */}
-                                <div style={{ width: '200px' }}></div>
-                            </div>
-                        </div>
-                     </div>
-                ) : (
-                    <div className={styles.studioLayout}>
-                        <div className={styles.studioSidebar}>
-                            <div className={styles.inputGroup}>
-                                <label>Audio File</label>
-                                <label className={styles.input} style={{ cursor: 'pointer', display: 'block', textAlign: 'center', borderStyle: 'dashed' }}>
-                                    {audioSrc ? "Audio Loaded" : "Click to Upload MP3"}
-                                    <input type="file" accept="audio/*" hidden onChange={handleFileUpload} />
-                                </label>
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label>Title</label>
-                                <input className={styles.input} value={meta.title} onChange={e => setMeta({...meta, title: e.target.value})} />
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label>Artist</label>
-                                <input className={styles.input} value={meta.artist} onChange={e => setMeta({...meta, artist: e.target.value})} />
-                            </div>
-                            
-                            <div style={{ height: '1px', background: '#333', margin: '10px 0' }}></div>
-
-                            <button className={styles.btnPrimary} disabled={!audioSrc || !rawOriginal} onClick={prepareForRecording}>
-                                <Icons.Play /> Start Recording
-                            </button>
-
-                            {meta.status === 'published' ? (
-                                <div style={{ 
-                                    marginTop: '20px', 
-                                    textAlign: 'center', 
-                                    padding: '12px', 
-                                    background: 'rgba(0,255,0,0.1)', 
-                                    border: '1px solid rgba(0,255,0,0.3)',
-                                    borderRadius: '8px',
-                                    color: '#4ade80',
-                                    fontSize: '0.8rem',
-                                    letterSpacing: '0.1em',
-                                    textTransform: 'uppercase'
-                                }}>
-                                    <span style={{ marginRight: '8px' }}>●</span> Published
-                                </div>
-                            ) : (
-                                <button 
-                                    className={styles.btnPrimary} 
-                                    onClick={handlePublish}
-                                    disabled={!meta.title || !meta.artist}
-                                    style={{ marginTop: '20px', background: meta.title && meta.artist ? '#fff' : '#333', color: '#000' }}
-                                >
-                                    <Icons.Upload /> Publish Track
-                                </button>
-                            )}
-                        </div>
-                        <div className={styles.studioContent}>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <label style={{ color: '#666', marginBottom: '8px', display: 'block', fontSize: '0.8rem' }}>ORIGINAL LYRICS</label>
-                                <textarea className={styles.textArea} value={rawOriginal} onChange={e => setRawOriginal(e.target.value)} placeholder="Paste lyrics here..." />
-                            </div>
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <label style={{ color: '#666', marginBottom: '8px', display: 'block', fontSize: '0.8rem' }}>TRANSLATION</label>
-                                <textarea className={styles.textArea} value={rawTranslation} onChange={e => setRawTranslation(e.target.value)} placeholder="Paste translation here..." />
-                            </div>
-                        </div>
-                    </div>
-                )}
+              <div className="flex items-center justify-between text-white/40">
+                 <SkipBack size={24} className="hover:text-white cursor-pointer transition-colors" />
+                 
+                 <button 
+                    onClick={togglePlay}
+                    className="w-16 h-16 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white hover:text-black hover:scale-105 hover:border-white transition-all flex items-center justify-center"
+                 >
+                    {isPlaying || isTonearmMoving ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" /> }
+                 </button>
+                 
+                 <SkipForward size={24} className="hover:text-white cursor-pointer transition-colors" />
+              </div>
             </div>
-        )}
 
-        {/* AUTH MODAL */}
-        {showAuth && (
-            <div className={styles.modalOverlay} onClick={() => setShowAuth(false)}>
-                <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', marginBottom: '20px' }}>Studio Access</h2>
-                    <form onSubmit={handleAuth}>
-                        <input 
-                            type="password" 
-                            className={styles.pinInput} 
-                            maxLength={4} 
-                            autoFocus
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                        />
-                    </form>
-                </div>
-            </div>
-        )}
-
-      </main>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
