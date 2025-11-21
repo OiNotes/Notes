@@ -2565,3 +2565,9 @@ code {
     min-width: 52px;
   }
 }
+
+/* Hide global SiteHeader and SiteFooter on music page */
+body:has([class*="music"]) .site-header,
+body:has([class*="music"]) .site-footer {
+  display: none;
+}
