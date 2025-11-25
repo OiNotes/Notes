@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Track {
@@ -40,7 +41,7 @@ model Lyric {
 }
 
 model StrobeMarker {
-  id      Int    @id @default(autoincrement())
+  id      String @id @default(cuid())
   trackId String
   time    Float
   track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)

@@ -5,9 +5,12 @@
   "scripts": {
     "predev": "node -e \"require('fs').mkdirSync('.next/static/development',{recursive:true});\"",
     "dev": "PORT=${PORT:-4311} next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "prisma generate && next build --turbopack",
+    "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
