@@ -37,8 +37,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ audioPath: blob.url }, { status: 201 });
   } catch (error) {
     console.error('Error uploading file:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { error: 'Failed to upload file', details: errorMessage },
       { status: 500 }
     );
   }
