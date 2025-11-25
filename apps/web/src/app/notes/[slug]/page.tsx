@@ -15,9 +15,8 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-export default async function NotePage({ params }: { params: Promise<{ slug: string }> | { slug: string } }) {
-  // Next.js 15+: params may be a Promise — always await
-  const { slug } = await (params as any);
+export default async function NotePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const profile = await getPerson(slug).catch(() => null);
 
   if (!profile) {
