@@ -6,12 +6,20 @@ import styles from "./split-screen.module.css";
 export function SplitScreen() {
     return (
         <div className={styles.container}>
-            <Link href="/branch" className={styles.panel} data-side="left">
+            <Link 
+              href="/branch" 
+              className={styles.panel} 
+              data-side="left"
+              onClick={(e) => {
+                e.preventDefault();
+                alert('Раздел находится в разработке 🛠️');
+              }}
+            >
                 <div className={styles.background} />
                 <div className={styles.overlay} />
                 <div className={styles.content}>
                     <span className={styles.kicker}>Engineering</span>
-                    <h2 className={styles.title}>Dave Branch</h2>
+                    <h2 className={styles.title}>Dave & Branch</h2>
                     <span className={styles.cta}>Explore System</span>
                 </div>
             </Link>

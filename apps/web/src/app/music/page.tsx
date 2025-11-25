@@ -217,7 +217,7 @@ const VinylRecord = ({ track, isPlaying }: { track: Track, isPlaying: boolean })
 
 const Turntable = ({ track, isPlaying, isTonearmMoving }: { track: Track, isPlaying: boolean, isTonearmMoving: boolean }) => {
   return (
-    <div className="relative w-full max-w-[360px] aspect-square md:max-w-[520px] rounded-[2.5rem] shadow-[0_30px_80px_-10px_rgba(0,0,0,0.8)] flex items-center justify-center shrink-0 transform transition-transform duration-1000 bg-[#111]">
+    <div className="relative w-full aspect-square rounded-[2.5rem] shadow-[0_30px_80px_-10px_rgba(0,0,0,0.8)] flex items-center justify-center shrink-0 transform transition-transform duration-1000 bg-[#111]">
        {/* Chassis Texture - Brushed Metal/Dark Matte */}
       <div className="absolute inset-0 rounded-[2.5rem] bg-[#121212] overflow-hidden border border-white/5">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay" />
@@ -576,7 +576,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
 
         {/* STEP 0: TRACK LIST */}
         {step === 0 && (
@@ -1252,6 +1252,26 @@ export default function MusicApp() {
   const [progress, setProgress] = useState(0);
   const [isLyricAnimating, setIsLyricAnimating] = useState(false);
   const [playerShowFlash, setPlayerShowFlash] = useState(false);
+  const [isScratching, setIsScratching] = useState(false);
+  const [isClimax, setIsClimax] = useState(false); // New State for "Drrr-drrr" ending
+  
+  // --- AUDIO ANALYSIS STATE ---
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  
+  // Smooth Chaos State (Cinematic)
+  const [cinematicValues, setCinematicValues] = useState({ 
+      chromatic: 0,
+      contrast: 1,
+      scale: 1,
+      translateX: 0, // Digital Jitter X
+      translateY: 0, // Digital Jitter Y
+      invert: 0,      // Negative Flash
+      skew: 0,       // Restore Skew
+      rotate: 0      // Restore Rotate
+  });
 
   // Admin State
   const [clicks, setClicks] = useState(0);
@@ -1263,6 +1283,138 @@ export default function MusicApp() {
   const [editMode, setEditMode] = useState(false);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Touch Gestures State
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Touch Gesture Handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+    setSwipeOffset(0);
+    setSwipeDirection(null);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    // Only horizontal swipe (ignore if mostly vertical scroll)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      // Limit swipe offset for visual feedback
+      const maxOffset = 80;
+      const clampedOffset = Math.max(-maxOffset, Math.min(maxOffset, deltaX * 0.5));
+      setSwipeOffset(clampedOffset);
+      setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStartRef.current) return;
+
+    const minSwipeDistance = 60;
+    const maxSwipeTime = 300; // ms
+    const swipeDuration = Date.now() - touchStartRef.current.time;
+
+    // Fast swipe detection
+    if (Math.abs(swipeOffset) > minSwipeDistance / 2 && swipeDuration < maxSwipeTime) {
+      if (swipeOffset > 0) {
+        // Swipe right = skip back 10s
+        if (mainAudioRef.current) {
+          mainAudioRef.current.currentTime = Math.max(0, mainAudioRef.current.currentTime - 10);
+        }
+      } else {
+        // Swipe left = skip forward 10s
+        if (mainAudioRef.current) {
+          mainAudioRef.current.currentTime = Math.min(
+            mainAudioRef.current.duration || 0,
+            mainAudioRef.current.currentTime + 10
+          );
+        }
+      }
+    }
+
+    // Reset state with spring animation
+    setSwipeOffset(0);
+    setSwipeDirection(null);
+    touchStartRef.current = null;
+  }, [swipeOffset]);
+
+  // Double Tap Handler (separate from swipe)
+  const handleDoubleTap = useCallback((e: React.TouchEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+        tapTimeoutRef.current = null;
+      }
+
+      // Determine which half of screen was tapped
+      const touch = e.changedTouches[0];
+      const screenWidth = window.innerWidth;
+
+      if (touch.clientX < screenWidth / 2) {
+        // Left side = rewind 10s
+        if (mainAudioRef.current) {
+          mainAudioRef.current.currentTime = Math.max(0, mainAudioRef.current.currentTime - 10);
+        }
+      } else {
+        // Right side = forward 10s
+        if (mainAudioRef.current) {
+          mainAudioRef.current.currentTime = Math.min(
+            mainAudioRef.current.duration || 0,
+            mainAudioRef.current.currentTime + 10
+          );
+        }
+      }
+
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+
+      // Single tap with delay for play/pause (on vinyl area only, handled elsewhere)
+      tapTimeoutRef.current = setTimeout(() => {
+        tapTimeoutRef.current = null;
+      }, DOUBLE_TAP_DELAY);
+    }
+  }, []);
+
+  // Initialize Audio Context
+  const initAudioAnalyzer = () => {
+      if (!mainAudioRef.current || audioContextRef.current) return;
+
+      try {
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContext();
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 256; // Balance performance/detail
+          
+          const source = ctx.createMediaElementSource(mainAudioRef.current);
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+
+          audioContextRef.current = ctx;
+          analyserRef.current = analyser;
+          sourceRef.current = source;
+          dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+      } catch (e) {
+          console.error("Audio API Error:", e);
+      }
+  };
 
   useEffect(() => {
     console.log('[MusicApp] Mounted. Loading tracks from database...');
@@ -1284,7 +1436,26 @@ export default function MusicApp() {
     };
 
     loadTracks();
+    
+    return () => {
+        // Cleanup Audio Context
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+        }
+    };
   }, []);
+
+  // Clean up AudioContext when track changes to ensure new source connection
+  useEffect(() => {
+      if (audioContextRef.current) {
+          console.log('[MusicApp] Closing old AudioContext');
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+          analyserRef.current = null;
+          sourceRef.current = null;
+          dataArrayRef.current = null;
+      }
+  }, [activeTrack]);
 
   // --- LOGIC ---
 
@@ -1436,6 +1607,15 @@ export default function MusicApp() {
 
   const togglePlay = async () => {
     console.log('[MusicApp] Toggle Play');
+    
+    // Initialize Audio Engine on first user interaction (browser policy)
+    if (!audioContextRef.current) {
+        initAudioAnalyzer();
+    }
+    if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume();
+    }
+
     if (isPlaying || isTonearmMoving) {
       // STOP SEQUENCE
       setIsPlaying(false);
@@ -1492,10 +1672,6 @@ export default function MusicApp() {
           const duration = mainAudioRef.current.duration;
           const currentTime = mainAudioRef.current.currentTime;
 
-          // Update Progress
-          setProgress((currentTime / duration) * 100);
-
-          // Update Lyrics
           // Update Lyrics
           // Check if lyrics contain timing data (Workshop tracks)
           const hasTiming = activeTrack.lyrics.length > 0 && typeof activeTrack.lyrics[0] !== 'string' && 'time' in (activeTrack.lyrics[0] as any);
@@ -1514,9 +1690,13 @@ export default function MusicApp() {
                 break;
               }
             }
-            if (index !== -1) setCurrentLyricIndex(index);
+            if (index !== -1 && index !== currentLyricIndex) {
+              setCurrentLyricIndex(index);
+              // RESET CINEMATIC EFFECTS ON NEW LINE
+              setCinematicValues({ chromatic: 0, contrast: 1, skew: 0, scale: 1, translateX: 0, translateY: 0, invert: 0, rotate: 0 });
+            }
           } else {
-            // Fallback for demo tracks (linear interpolation)
+            // Fallback for demo tracks
             const totalLyrics = activeTrack.lyrics.length;
             if (totalLyrics > 0) {
               const lyricsPerPercent = 100 / totalLyrics;
@@ -1524,6 +1704,29 @@ export default function MusicApp() {
               setCurrentLyricIndex(Math.min(newIndex, totalLyrics - 1));
             }
           }
+          
+          // --- CINEMATIC AUDIO ANALYSIS & BEAT DETECTION ---
+          let kickEnergy = 0; // 0.0 - 1.0
+          let trebleEnergy = 0; // 0.0 - 1.0
+          
+          if (analyserRef.current && dataArrayRef.current) {
+             analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+             // BASS (KICK)
+             const bassZone = dataArrayRef.current.slice(0, 5);
+             const bassAvg = bassZone.reduce((a, b) => a + b, 0) / bassZone.length;
+             kickEnergy = bassAvg / 255;
+             
+             // TREBLE (NOISE)
+             const trebleZone = dataArrayRef.current.slice(100, 180);
+             const trebleAvg = trebleZone.reduce((a, b) => a + b, 0) / trebleZone.length;
+             trebleEnergy = trebleAvg / 255;
+          }
+
+          // --- CLEAN MODE - NO SHAKE EFFECTS ---
+          // All cinematic effects disabled for stable playback
+          if (isScratching) setIsScratching(false);
+          if (isClimax) setIsClimax(false);
+
         } else {
           // Fallback Simulation (if no audio file)
           setProgress((prev) => {
@@ -1536,10 +1739,11 @@ export default function MusicApp() {
             return prev + 0.05;
           });
         }
-      }, 100);
+
+      }, 30); // 30ms for near-60fps updates
     }
     return () => clearInterval(interval);
-  }, [isPlaying, activeTrack, progress]);
+  }, [isPlaying, activeTrack, progress, isScratching, isClimax, currentLyricIndex]);
 
   // Strobe markers playback - Optimized to fire EXACTLY once
   const lastStrobeCheckTime = useRef(0);
@@ -1595,6 +1799,8 @@ export default function MusicApp() {
     // Logic moved to interval for unified update
   };
 
+  // Force reload audio when track changes - REMOVED (React key prop handles this)
+  
   const handleSelectTrack = (track: Track) => {
     console.log('[MusicApp] Track Selected:', track.title);
     setActiveTrack(track);
@@ -1618,7 +1824,7 @@ export default function MusicApp() {
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black overflow-hidden" style={{ backgroundColor: '#050505' }}>
+    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black overflow-y-auto" style={{ backgroundColor: '#050505' }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -1638,51 +1844,67 @@ export default function MusicApp() {
           100% { opacity: 0; }
         }
 
-        /* Feeling/чувство - пульсация красным без изменения размера */
-        @keyframes deep-feeling {
-          0% {
-            color: white;
-            text-shadow: 0 0 0 transparent;
+        /* VISCERAL SURGE - The "Feeling" Effect */
+        @keyframes visceral-surge {
+          0% { 
+            transform: scale(1); 
+            color: white; 
             filter: brightness(1);
           }
-          30% {
-            color: #fb7185;
-            text-shadow: 0 0 20px rgba(251, 113, 133, 0.6);
-            filter: brightness(1.1);
+          20% { 
+            transform: scale(1.05); 
+            color: #fff1f2; 
           }
-          60% {
-            color: #e11d48;
-            text-shadow: 0 0 30px rgba(225, 29, 72, 0.8);
-            filter: brightness(1.15);
+          50% { 
+            transform: scale(1.35); /* Magnifying Glass Effect */
+            color: #e11d48; /* Pure Red */
+            filter: drop-shadow(0 0 15px rgba(225, 29, 72, 0.6));
           }
-          100% {
-            color: #be123c;
-            text-shadow: 0 0 25px rgba(190, 18, 60, 0.7);
-            filter: brightness(1.1);
+          100% { 
+            transform: scale(1.1); /* Linger slightly larger */
+            color: #be123c; /* Deep Blood Red */
+            filter: drop-shadow(0 0 5px rgba(190, 18, 60, 0.4));
           }
         }
 
-        @keyframes deep-glow {
-           0% { opacity: 0; }
-           50% { opacity: 0.6; filter: blur(15px); }
-           100% { opacity: 0.3; filter: blur(10px); }
+        .animate-visceral-surge {
+           animation-name: visceral-surge;
+           animation-timing-function: cubic-bezier(0.25, 0.4, 0.25, 1);
         }
 
-        .animate-deep-feeling {
-           animation-name: deep-feeling;
-           animation-duration: 4s;
-           animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-           display: inline-block;
+        /* SCRATCH MODE CHAOS */
+        @keyframes scratch-spin {
+           0% { transform: rotate(0deg) scale(1); }
+           10% { transform: rotate(-25deg) scale(1.05); } 
+           20% { transform: rotate(15deg) scale(0.95); } 
+           30% { transform: rotate(-45deg) scale(1.1); } 
+           40% { transform: rotate(5deg) scale(1); }
+           50% { transform: rotate(-10deg) scale(1.02); }
+           60% { transform: rotate(360deg) scale(1); } 
+           70% { transform: rotate(-20deg) scale(1.05); }
+           100% { transform: rotate(0deg) scale(1); }
         }
 
+        @keyframes reality-warp {
+           0% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
+           25% { transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) scale(1.02); filter: hue-rotate(45deg) contrast(1.2); }
+           50% { transform: perspective(1000px) rotateX(-2deg) rotateY(2deg) scale(0.98); filter: hue-rotate(-45deg) contrast(1.1); }
+           75% { transform: perspective(1000px) rotateX(1deg) rotateY(-1deg) scale(1.05); filter: hue-rotate(90deg); }
+           100% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
+        }
+
+        .animate-scratch-spin {
+           animation: scratch-spin 0.8s linear infinite;
+        }
+        
+        .animate-reality-warp {
+           animation: reality-warp 4s ease-in-out infinite;
+           will-change: transform, filter;
+        }
+
+        /* Deep Glow for surge */
         .animate-deep-glow {
-           animation-name: deep-glow;
-           animation-duration: 4s;
-           animation-timing-function: ease-out;
-           position: absolute;
-           inset: 0;
-           background: radial-gradient(circle, rgba(225, 29, 72, 0.4), transparent 70%);
-           pointer-events: none;
+           animation: visceral-surge 4s cubic-bezier(0.25, 0.4, 0.25, 1);
         }
 
         /* Apple Music Style Mesh Gradient Animations - GPU Accelerated */
@@ -1731,38 +1953,72 @@ export default function MusicApp() {
           animation: fade-in-delayed 1s ease-out forwards;
         }
 
-        /* VISCERAL SURGE - The "Feeling" Effect */
+        /* CLIMAX SHAKE - The "Drrr-Drrr" Drum Roll Effect - INTENSIFIED */
+        @keyframes climax-shake {
+           0% { transform: translate(0, 0) scale(1.3) rotate(0deg); filter: hue-rotate(0deg) blur(0px) contrast(1.5); }
+           15% { transform: translate(20px, -20px) scale(1.6) rotate(5deg); filter: hue-rotate(60deg) blur(3px) invert(1) saturate(3); }
+           30% { transform: translate(-25px, 15px) scale(1.2) rotate(-8deg); filter: hue-rotate(120deg) blur(0px) invert(0) contrast(2); }
+           45% { transform: translate(15px, 25px) scale(1.7) rotate(10deg); filter: hue-rotate(180deg) blur(5px) invert(1) brightness(1.5); }
+           60% { transform: translate(-20px, -20px) scale(1.1) rotate(-5deg); filter: hue-rotate(240deg) blur(0px) invert(0) saturate(4); }
+           75% { transform: translate(25px, 10px) scale(1.8) rotate(8deg); filter: hue-rotate(300deg) blur(4px) invert(1) contrast(2.5); }
+           90% { transform: translate(-10px, -15px) scale(1.4) rotate(-3deg); filter: hue-rotate(350deg) blur(2px) invert(0); }
+           100% { transform: translate(0, 0) scale(1.3) rotate(0deg); filter: hue-rotate(0deg) blur(0px) contrast(1.5); }
+        }
+
+        .animate-climax-shake {
+           animation: climax-shake 0.06s linear infinite; /* Even faster - terrifying */
+        }
+
+        /* VISCERAL SURGE - ARTISTIC "SOUL" EFFECT (NO SCALE) */
         @keyframes visceral-surge {
-          0% { 
-            transform: scale(1); 
-            color: white; 
-            filter: brightness(1);
-          }
-          20% { 
-            transform: scale(1.05); 
-            color: #fff1f2; /* Pale pink start */
+          0%, 100% { 
+            color: #ffffff; 
+            text-shadow: 0 0 0 transparent;
           }
           50% { 
-            transform: scale(1.35); /* Magnifying Glass Effect */
-            color: #e11d48; /* Pure Red */
-            filter: drop-shadow(0 0 15px rgba(225, 29, 72, 0.6));
-          }
-          100% { 
-            transform: scale(1.1); /* Linger slightly larger */
-            color: #be123c; /* Deep Blood Red */
-            filter: drop-shadow(0 0 5px rgba(190, 18, 60, 0.4));
+            color: #ef4444; /* Pure Red */
+            text-shadow: 0 0 30px rgba(225, 29, 72, 0.8); /* Strong Glow */
           }
         }
 
         .animate-visceral-surge {
-           animation-name: visceral-surge;
-           animation-timing-function: cubic-bezier(0.25, 0.4, 0.25, 1); /* Smooth organic curve */
+           animation: visceral-surge 3s ease-in-out infinite;
+        }
+
+        /* SCRATCH MODE - CHAOS SPIRAL (INTENSE & VARIED) */
+        @keyframes chaos-spiral {
+           0% { transform: scale(1) rotate(0deg) translate3d(0,0,0); filter: hue-rotate(0deg) contrast(1); }
+           10% { transform: scale(1.1) rotate(-10deg) skewX(20deg); filter: hue-rotate(45deg) contrast(1.5) invert(0); }
+           20% { transform: scale(0.9) rotate(15deg) translate3d(-50px, 50px, 100px); filter: hue-rotate(90deg) blur(2px); }
+           30% { transform: scale(1.3) rotate(-180deg) skewY(-10deg); filter: invert(1) hue-rotate(180deg); }
+           45% { transform: scale(0.8) rotate(90deg) perspective(500px) rotateX(45deg); filter: sepia(1) saturate(5); }
+           60% { transform: scale(1.4) rotate(360deg) translate3d(50px, -50px, 0); filter: hue-rotate(270deg) blur(0px) contrast(2); }
+           75% { transform: scale(0.9) rotate(-45deg) skewX(-20deg); filter: invert(0) hue-rotate(320deg); }
+           90% { transform: scale(1.1) rotate(10deg) perspective(1000px) rotateY(180deg); filter: hue-rotate(0deg) blur(4px); }
+           100% { transform: scale(1) rotate(0deg) translate3d(0,0,0); filter: none; }
+        }
+
+        @keyframes scratch-shake {
+           0%, 100% { transform: translate(0,0) rotate(0deg); }
+           25% { transform: translate(-5px, 5px) rotate(-5deg); }
+           50% { transform: translate(5px, -5px) rotate(5deg); }
+           75% { transform: translate(-5px, -5px) rotate(-5deg); }
+        }
+
+        .animate-scratch-spin {
+           animation: scratch-shake 0.1s linear infinite; /* Violet shaking */
+        }
+        
+        .animate-reality-warp {
+           animation: chaos-spiral 3s ease-in-out infinite;
+           will-change: transform, filter;
         }
       `}</style>
 
       {/* HIDDEN AUDIO FOR MAIN PLAYER */}
       <audio
         ref={mainAudioRef}
+        key={activeTrack?.id} // Force remount on track change
         src={activeTrack?.audioSrc || undefined}
         onTimeUpdate={handleMainTimeUpdate}
         onEnded={() => {
@@ -1773,25 +2029,17 @@ export default function MusicApp() {
       />
 
       {/* HEADER */}
-      <header className="absolute top-0 left-0 w-full p-8 flex flex-col items-center justify-center z-20 pointer-events-none">
-        <div className="pointer-events-auto flex flex-col items-center gap-6 animate-in fade-in slide-in-from-top-8 duration-1000">
-           {/* Decorative Line */}
-           <div className="w-px h-24 bg-gradient-to-b from-white/0 via-white/20 to-white/0 absolute -top-8" />
-           
-           <div className="text-center space-y-2 mt-4 group cursor-pointer" onClick={handleHeaderClick}>
-              <h1 className="text-5xl md:text-7xl font-lyrics italic text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/40 drop-shadow-2xl transition-all duration-500 group-hover:to-white/60">
+      <header className="relative w-full pt-20 pb-12 flex flex-col items-center justify-center z-10">
+        <div className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-8 duration-1000">
+           <div className="text-center space-y-2 group cursor-pointer" onClick={handleHeaderClick}>
+              <h1 className="text-3xl md:text-5xl font-serif font-medium text-white tracking-[0.3em] uppercase transition-opacity duration-500 hover:opacity-80">
                 Тексты & Переводы
               </h1>
-              <div className="flex items-center justify-center gap-4 opacity-60">
-                 <div className="h-px w-8 bg-gradient-to-r from-transparent to-amber-500/50" />
-                 <span className="text-[10px] md:text-xs font-sans uppercase tracking-[0.4em] text-amber-500 font-medium">Premium Collection</span>
-                 <div className="h-px w-8 bg-gradient-to-l from-transparent to-amber-500/50" />
-              </div>
            </div>
         </div>
 
         {isAdmin && (
-          <div className="absolute right-8 top-8 pointer-events-auto flex gap-4 animate-in fade-in duration-500">
+          <div className="absolute right-8 top-8 flex gap-4 animate-in fade-in duration-500">
             <button
               onClick={() => setEditMode(!editMode)}
               className={`p-3 rounded-full backdrop-blur-md border border-white/10 transition-all hover:scale-105 ${editMode ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`}
@@ -1809,30 +2057,30 @@ export default function MusicApp() {
       </header>
 
       {/* TRACKS GRID */}
-      <div className="w-full h-full overflow-y-auto pt-24 pb-12 px-4 md:px-12">
-        <main className="max-w-7xl mx-auto px-6 pb-32 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-20">
+      <div className="w-full pb-32 px-4 md:px-12">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 md:gap-y-20">
             {tracks.map((track) => (
               <div
                 key={track.id}
                 onClick={() => handleSelectTrack(track)}
-                className="group cursor-pointer relative flex items-center p-4 rounded-3xl hover:bg-white/[0.02] transition-colors"
+                className="group cursor-pointer relative flex flex-col sm:flex-row items-center sm:items-center p-4 rounded-3xl hover:bg-white/[0.02] transition-colors min-h-[200px] sm:h-64 overflow-hidden"
               >
-                {/* 1. Конверт */}
-                <div className="relative z-20 w-48 h-48 bg-[#0f0f0f] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-sm flex flex-col justify-between p-5 border border-white/5 group-hover:-translate-x-4 transition-transform duration-700 ease-out">
+                {/* 1. Конверт (Cover Art Container) */}
+                <div className="relative z-20 w-40 h-40 sm:w-44 md:w-48 sm:h-44 md:h-48 bg-[#0f0f0f] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-sm flex flex-col justify-between p-4 md:p-5 border border-white/5 sm:group-hover:-translate-x-4 transition-transform duration-700 ease-out shrink-0">
                   <div className="w-full h-full opacity-20 absolute inset-0 blur-xl" style={{ background: getColorTheme(track.color).gradient }} />
                   <div className="relative z-10 text-[10px] text-gray-500 font-mono uppercase tracking-widest">Stereo</div>
-                  <div className="relative z-10 font-lyrics text-2xl text-gray-200 leading-none">{track.artist}</div>
+                  <div className="relative z-10 font-lyrics text-2xl text-gray-200 leading-none truncate">{track.artist}</div>
                 </div>
 
-                {/* 2. Пластинка */}
-                <div className="absolute left-20 z-10 w-40 h-40 transition-transform duration-700 ease-out group-hover:translate-x-24 group-hover:rotate-12">
+                {/* 2. Пластинка (Vinyl Record) - hidden on mobile, visible on sm+ */}
+                <div className="hidden sm:block absolute left-20 md:left-24 z-10 w-36 md:w-44 h-36 md:h-44 transition-transform duration-700 ease-out group-hover:translate-x-20 md:group-hover:translate-x-24 group-hover:rotate-12 shrink-0">
                   <VinylRecord track={track} isPlaying={false} />
                 </div>
 
-                {/* 3. Название */}
-                <div className="ml-40 pl-8 flex flex-col justify-center border-l border-white/5 h-32 group-hover:border-amber-500/30 transition-colors">
-                  <h3 className="text-4xl font-lyrics italic text-gray-400 group-hover:text-white transition-colors duration-300">
+                {/* 3. Название (Title) */}
+                <div className="mt-4 sm:mt-0 sm:ml-44 md:ml-48 sm:pl-8 md:pl-12 flex flex-col justify-center sm:border-l border-white/5 sm:h-32 group-hover:border-amber-500/30 transition-colors w-full sm:w-auto">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-lyrics italic text-gray-400 group-hover:text-white transition-colors duration-300 text-center sm:text-left">
                     {track.title}
                   </h3>
                 </div>
@@ -1990,7 +2238,7 @@ export default function MusicApp() {
           {/* CLOSE BUTTON */}
           <button
             onClick={handleClosePlayer}
-            className={`absolute top-8 right-8 z-50 p-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-500 hover:scale-105
+            className={`absolute top-4 right-4 sm:top-8 sm:right-8 z-50 p-3 min-h-[44px] min-w-[44px] rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-500 hover:scale-105 flex items-center justify-center
               ${immersiveMode ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}
           >
             <X size={20} />
@@ -1999,7 +2247,7 @@ export default function MusicApp() {
           {/* BACK BUTTON (Top Left - Immersive) */}
           <button
             onClick={() => { setImmersiveMode(false); }}
-            className={`absolute top-8 left-8 z-50 px-4 py-2 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-500 flex items-center gap-2 hover:scale-105
+            className={`absolute top-4 left-4 sm:top-8 sm:left-8 z-50 px-4 py-2 min-h-[44px] rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all duration-500 flex items-center gap-2 hover:scale-105
               ${immersiveMode ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}
           >
             <ChevronRight className="rotate-180" size={18} />
@@ -2011,25 +2259,33 @@ export default function MusicApp() {
           <div className="relative w-full h-full flex items-center justify-center px-4">
 
             {/* --- VINYL VIEW (DEFAULT) --- */}
-            <div className={`absolute flex flex-col items-center transition-all duration-[1500ms] cubic-bezier(0.2, 0.8, 0.2, 1)
+            <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 sm:px-8 transition-all duration-[1500ms] cubic-bezier(0.2, 0.8, 0.2, 1)
                ${immersiveMode ? 'opacity-0 scale-110 blur-xl pointer-events-none translate-y-10' : 'opacity-100 scale-100 blur-0 translate-y-0'}`}>
 
-              <Turntable track={activeTrack} isPlaying={isPlaying} isTonearmMoving={isTonearmMoving} />
+              {/* Tap on vinyl to toggle play/pause */}
+              <div
+                onClick={togglePlay}
+                className="cursor-pointer active:scale-[0.98] transition-transform duration-150 w-full max-w-[280px] sm:max-w-[400px] md:max-w-[500px]"
+                role="button"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                <Turntable track={activeTrack} isPlaying={isPlaying} isTonearmMoving={isTonearmMoving} />
+              </div>
 
-              <div className="mt-16 text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 flex flex-col items-center">
+              <div className="mt-8 sm:mt-12 md:mt-16 text-center space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 flex flex-col items-center px-4">
                 <div className="space-y-2">
-                   <h2 className="text-4xl md:text-6xl font-lyrics italic text-white tracking-tight drop-shadow-2xl">{activeTrack.title}</h2>
+                   <h2 className="text-3xl sm:text-4xl md:text-6xl font-lyrics italic text-white tracking-tight drop-shadow-2xl">{activeTrack.title}</h2>
                    <p className="text-white/40 uppercase tracking-[0.3em] text-xs md:text-sm font-medium">{activeTrack.artist}</p>
                 </div>
 
                 {/* Initial Play Controls */}
-                <div className="flex items-center justify-center gap-8 pt-4">
-                   <button 
+                <div className="flex items-center justify-center gap-8 pt-2 sm:pt-4">
+                   <button
                      onClick={togglePlay}
-                     className="group relative flex items-center justify-center w-20 h-20 rounded-full bg-white/10 border border-white/20 backdrop-blur-md transition-all duration-500 hover:scale-110 hover:bg-white/20 hover:border-white/40 shadow-[0_0_30px_rgba(0,0,0,0.3)]"
+                     className="group relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/10 border border-white/20 backdrop-blur-md transition-all duration-500 hover:scale-110 hover:bg-white/20 hover:border-white/40 shadow-[0_0_30px_rgba(0,0,0,0.3)]"
                    >
                       <div className="absolute inset-0 rounded-full bg-amber-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                      <Play fill="white" className="w-8 h-8 text-white ml-1 relative z-10" />
+                      <Play fill="white" className="w-6 h-6 sm:w-8 sm:h-8 text-white ml-1 relative z-10" />
                    </button>
                 </div>
               </div>
@@ -2037,15 +2293,95 @@ export default function MusicApp() {
 
 
             {/* --- LYRICS / IMMERSIVE VIEW --- */}
-            <div className={`relative w-full h-full flex flex-col items-center justify-center transition-all duration-1000 ease-out overflow-hidden
-               ${immersiveMode ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+            <div
+               className={`relative w-full h-full flex flex-col items-center justify-center transition-all ease-linear overflow-hidden
+                  ${immersiveMode ? 'opacity-100' : 'opacity-0 scale-95 pointer-events-none'}
+                  ${swipeOffset !== 0 ? 'duration-0' : 'duration-75'}
+               `}
+               style={{
+                   // DIGITAL STORM STYLES
+                   textShadow: cinematicValues.chromatic > 0
+                     ? `${cinematicValues.chromatic}px 0 red, -${cinematicValues.chromatic}px 0 blue`
+                     : 'none',
 
-              {/* Lyrics Container - Refined Apple Style */}
+                   // Transform: Sharp X/Y Jitters + ROTATE + SKEW + SWIPE OFFSET
+                   transform: `translate3d(${cinematicValues.translateX + swipeOffset}px, ${cinematicValues.translateY}px, 0) rotate(${cinematicValues.rotate}deg) skewX(${cinematicValues.skew}deg) scale(${cinematicValues.scale})`,
+
+                   // Lighting: Invert Flash + High Contrast + Swipe Opacity
+                   filter: `invert(${cinematicValues.invert}) contrast(${cinematicValues.contrast}) brightness(${cinematicValues.contrast})`,
+                   opacity: swipeOffset !== 0 ? 1 - Math.abs(swipeOffset) / 200 : undefined,
+
+                   willChange: 'transform, filter, text-shadow, opacity',
+                   transition: swipeOffset === 0 ? 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out' : 'none'
+               }}
+               // Touch Gesture Handlers
+               onTouchStart={handleTouchStart}
+               onTouchMove={handleTouchMove}
+               onTouchEnd={(e) => {
+                 handleTouchEnd();
+                 handleDoubleTap(e);
+               }}
+            >
+              {/* Swipe Direction Indicators */}
+              {swipeDirection && (
+                <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-between px-8">
+                  <div className={`flex items-center gap-2 text-white/60 transition-opacity duration-150 ${swipeDirection === 'right' ? 'opacity-100' : 'opacity-0'}`}>
+                    <SkipBack className="w-8 h-8" />
+                    <span className="text-sm font-medium">-10s</span>
+                  </div>
+                  <div className={`flex items-center gap-2 text-white/60 transition-opacity duration-150 ${swipeDirection === 'left' ? 'opacity-100' : 'opacity-0'}`}>
+                    <span className="text-sm font-medium">+10s</span>
+                    <SkipForward className="w-8 h-8" />
+                  </div>
+                </div>
+              )}
+              
+              {/* REMOVED CLUB LIGHTS - PURE DIGITAL CHAOS */}
+
+              {/* GHOST VINYL OVERLAY (Scratch Mode) */}
+              <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 z-0 overflow-hidden ${isScratching ? 'opacity-40' : 'opacity-0'}`}>
+                 <div className="w-full h-full max-w-[100vw] md:w-[80%] md:h-[80%] animate-scratch-spin opacity-50 blur-sm mix-blend-overlay">
+                    <VinylRecord track={activeTrack} isPlaying={false} />
+                 </div>
+              </div>
+
+              {/* ATMOSPHERE: Film Grain Overlay */}
               <div className="w-full h-full flex flex-col items-center justify-center text-center relative overflow-hidden px-8">
                 {activeTrack.lyrics.length > 0 ? (() => {
                   const getLyricText = (line: any) => {
                     if (!line) return '';
                     return typeof line === 'string' ? line : line.translation || line.original || '';
+                  };
+
+                  // STRICT FILTER: Only highlight "чувство" and its variations
+                  const SPECIAL_ROOT = 'чувств';
+
+                  const renderLyricLine = (text: string) => {
+                    // Split text while preserving spaces
+                    const tokens = text.split(/(\s+)/);
+                    return tokens.map((token, i) => {
+                      const lower = token.toLowerCase();
+                      const isSpecial = lower.includes(SPECIAL_ROOT);
+                      
+                      // VISCERAL GLOW EFFECT (No Scaling)
+                      const specialStyle = {
+                         color: '#ef4444', // Red-500
+                         textShadow: '0 0 20px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.4)', // Deep Glow
+                         display: 'inline-block',
+                         animation: 'visceral-surge 4s infinite', // Just the color/glow pulse
+                         willChange: 'text-shadow, color'
+                      };
+                      
+                      return (
+                        <span
+                          key={i}
+                          className={isSpecial ? 'relative z-50' : 'text-white'}
+                          style={isSpecial ? specialStyle : undefined}
+                        >
+                          {token}
+                        </span>
+                      );
+                    });
                   };
 
                   const currentText = getLyricText(activeTrack.lyrics[currentLyricIndex]);
@@ -2060,11 +2396,11 @@ export default function MusicApp() {
                          key={currentLyricIndex} 
                          className="absolute flex flex-col items-center w-full transition-all duration-1000 ease-out animate-slide-current"
                        >
-                          <h2 
-                            className="font-lyrics font-bold italic text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight drop-shadow-2xl text-center max-w-5xl"
-                            style={{ textShadow: '0 0 30px rgba(255,255,255,0.2)' }}
+                          <h2
+                            className="font-lyrics font-bold italic text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-tight drop-shadow-2xl text-center max-w-5xl relative z-40"
+                            style={{ textShadow: 'inherit' }} // Inherit the chromatic aberration
                           >
-                            {currentText}
+                            {renderLyricLine(currentText)}
                           </h2>
                        </div>
 
@@ -2086,35 +2422,19 @@ export default function MusicApp() {
                 )}
               </div>
 
-              {/* CONTROLS BAR - Hover Reveal Only */}
-              <div className="absolute bottom-0 left-0 w-full h-40 flex items-end justify-center pb-8 hover:opacity-100 opacity-0 transition-opacity duration-500 z-50 bg-gradient-to-t from-black/80 to-transparent">
-                  <div className="w-full max-w-xl px-6 py-4 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex flex-col gap-4 shadow-2xl transform translate-y-0 hover:-translate-y-2 transition-transform duration-300">
-                    
-                    {/* Progress Bar */}
-                    <div className="w-full h-1 bg-white/10 rounded-full cursor-pointer group relative"
-                         onClick={(e) => {
-                            if (!mainAudioRef.current) return;
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const percent = (e.clientX - rect.left) / rect.width;
-                            mainAudioRef.current.currentTime = percent * mainAudioRef.current.duration;
-                         }}>
-                      <div className="absolute -top-2 -bottom-2 w-full bg-transparent" /> {/* Hit area */}
-                      <div
-                        className="bg-white h-full rounded-full relative shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between px-2">
-                      <button onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime -= 10; }} className="text-white/40 hover:text-white transition-colors">
+              {/* CONTROLS BAR - Always visible on touch, hover on desktop */}
+              <div className="absolute bottom-0 left-0 w-full h-32 flex items-end justify-center pb-6 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:hover:opacity-100 transition-opacity duration-500 z-50 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="w-full max-w-md mx-4 px-6 py-3 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime -= 10; }} className="text-white/40 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
                          <SkipBack className="w-6 h-6" />
                       </button>
-                      
-                      <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform">
+
+                      <button onClick={togglePlay} className="text-white hover:scale-110 transition-transform min-h-[44px] min-w-[44px] flex items-center justify-center">
                          {isPlaying ? <Pause className="w-8 h-8 fill-white" /> : <Play className="w-8 h-8 fill-white ml-1" />}
                       </button>
 
-                      <button onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime += 10; }} className="text-white/40 hover:text-white transition-colors">
+                      <button onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime += 10; }} className="text-white/40 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
                          <SkipForward className="w-6 h-6" />
                       </button>
                     </div>

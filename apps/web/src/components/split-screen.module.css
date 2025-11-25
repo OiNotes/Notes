@@ -246,10 +246,15 @@
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
+    height: 100dvh; /* Better mobile height support */
   }
 
   .panel {
+    width: 100%;
+    height: 50%;
+    flex: 0 0 50%; /* Force exact 50% split */
     padding: 0 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05); /* Subtle separator */
   }
 
   .divider {
@@ -257,33 +262,52 @@
     height: 1px;
     left: 0;
     top: 50%;
+    bottom: auto;
     transform: translateY(-50%);
     flex-direction: row;
+    z-index: 30;
   }
   
   .dividerLine {
     height: 1px;
     width: auto;
-    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+    flex: 1;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
   }
 
   .dividerLogo {
-    padding: 0 20px;
+    padding: 0 16px;
+    background: #000; /* Hide border behind logo */
+    border-radius: 50%;
   }
   
+  /* Disable hover physics on touch */
   .container:has(.panel:hover) .panel:not(:hover) {
-    opacity: 1; /* No dimming on mobile */
+    opacity: 1;
     filter: none;
     transform: none;
   }
   
+  .panel:hover .background {
+     transform: none;
+     opacity: 0.5;
+  }
+  
+  /* Always show content on mobile */
   .kicker, .cta {
     opacity: 1;
     transform: translateY(0);
   }
   
   .title {
-    font-size: 2.2rem;
-    white-space: normal; /* Allow wrap on very small screens if needed */
+    font-size: clamp(2rem, 8vw, 3rem); /* Responsive text */
+    white-space: normal;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .cta {
+    padding: 10px 20px;
+    font-size: 0.7rem;
   }
 }
