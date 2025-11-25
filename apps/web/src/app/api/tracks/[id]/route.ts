@@ -17,6 +17,11 @@ export async function GET(
           orderBy: {
             order: 'asc'
           }
+        },
+        strobeMarkers: {
+          orderBy: {
+            time: 'asc'
+          }
         }
       }
     });
@@ -40,6 +45,10 @@ export async function GET(
         translation: lyric.translation,
         time: lyric.time,
         isSynced: lyric.isSynced
+      })),
+      strobeMarkers: track.strobeMarkers.map(marker => ({
+        id: marker.id,
+        time: marker.time
       }))
     };
 
@@ -64,10 +73,33 @@ export async function PUT(
 
     const track = await prisma.track.update({
       where: { id },
-      data: { artist, title }
+      data: { artist, title },
+      include: {
+        lyrics: { orderBy: { order: 'asc' } },
+        strobeMarkers: { orderBy: { time: 'asc' } }
+      }
     });
 
-    return NextResponse.json(track);
+    const formattedTrack = {
+      id: track.id,
+      artist: track.artist,
+      title: track.title,
+      color: track.color,
+      audioSrc: track.audioPath,
+      lyrics: track.lyrics.map(lyric => ({
+        id: lyric.id,
+        original: lyric.original,
+        translation: lyric.translation,
+        time: lyric.time,
+        isSynced: lyric.isSynced
+      })),
+      strobeMarkers: track.strobeMarkers.map(marker => ({
+        id: marker.id,
+        time: marker.time
+      }))
+    };
+
+    return NextResponse.json(formattedTrack);
   } catch (error) {
     console.error('Error updating track:', error);
     return NextResponse.json(
