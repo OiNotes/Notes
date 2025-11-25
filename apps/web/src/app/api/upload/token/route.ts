@@ -10,21 +10,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       token: process.env.BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname) => {
-        // Validate file type
-        if (!pathname.match(/\.(mp3|m4a|wav|ogg|flac|aac)$/i)) {
+        // Validate file extension
+        if (!pathname.match(/\.(mp3|m4a|wav|ogg|flac|aac|webm|mp4)$/i)) {
           throw new Error('Invalid file type');
         }
         return {
-          allowedContentTypes: [
-            'audio/mpeg',
-            'audio/mp4',
-            'audio/x-m4a',
-            'audio/wav',
-            'audio/ogg',
-            'audio/flac',
-            'audio/aac',
-          ],
+          // Remove allowedContentTypes restriction - causes 403 errors due to content-type mismatches
           maximumSizeInBytes: 50 * 1024 * 1024, // 50MB limit
+          validUntil: Date.now() + 60 * 60 * 1000, // 1 hour validity for slow uploads
         };
       },
       onUploadCompleted: async ({ blob }) => {
