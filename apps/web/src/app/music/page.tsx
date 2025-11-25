@@ -1494,9 +1494,18 @@ export default function MusicApp() {
     lyrics: any[];
   }) => {
     try {
-      console.log("Publishing track...");
+      console.log("Publishing track...", {
+        artist: trackData.artist,
+        title: trackData.title,
+        color: trackData.color,
+        audioFileName: trackData.audioFile?.name,
+        audioFileSize: trackData.audioFile?.size,
+        audioFileType: trackData.audioFile?.type,
+        lyricsCount: trackData.lyrics?.length
+      });
 
       // 1. Upload audio file
+      console.log("Step 1: Uploading audio file...");
       const formData = new FormData();
       formData.append('audio', trackData.audioFile);
 
@@ -1505,35 +1514,50 @@ export default function MusicApp() {
         body: formData,
       });
 
+      console.log("Upload response status:", uploadRes.status);
+
       if (!uploadRes.ok) {
-        throw new Error('Failed to upload audio file');
+        const errorText = await uploadRes.text();
+        console.error("Upload failed:", errorText);
+        throw new Error(`Failed to upload audio file: ${errorText}`);
       }
 
-      const { audioPath } = await uploadRes.json();
+      const uploadData = await uploadRes.json();
+      console.log("Upload success:", uploadData);
+      const { audioPath } = uploadData;
 
       // 2. Create track in database
+      console.log("Step 2: Creating track in database...");
+      const trackPayload = {
+        artist: trackData.artist,
+        title: trackData.title,
+        color: trackData.color,
+        audioPath,
+        lyrics: trackData.lyrics,
+      };
+      console.log("Track payload:", trackPayload);
+
       const createRes = await fetch('/api/tracks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          artist: trackData.artist,
-          title: trackData.title,
-          color: trackData.color,
-          audioPath,
-          lyrics: trackData.lyrics,
-        }),
+        body: JSON.stringify(trackPayload),
       });
 
+      console.log("Create track response status:", createRes.status);
+
       if (!createRes.ok) {
-        throw new Error('Failed to create track');
+        const errorText = await createRes.text();
+        console.error("Create track failed:", errorText);
+        throw new Error(`Failed to create track: ${errorText}`);
       }
 
       const createdTrack = await createRes.json();
+      console.log("Track created successfully:", createdTrack);
 
-      // 3. Update local state
       // 3. Update local state
       setTracks(prev => [...prev, createdTrack]);
       setShowStudio(false); // Close studio after success
+      console.log("Publishing complete!");
     } catch (error) {
       console.error('Error publishing track:', error);
       alert('Failed to publish track');
