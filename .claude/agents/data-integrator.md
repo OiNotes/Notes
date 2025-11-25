@@ -1,6 +1,7 @@
 ---
+name: data-integrator
 description: Backend интеграция, API routes и dynamic routing для музыкальных треков
-model: sonnet
+model: opus
 ---
 
 # Data Integrator Agent

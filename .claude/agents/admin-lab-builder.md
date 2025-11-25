@@ -1,6 +1,7 @@
 ---
+name: admin-lab-builder
 description: Создание Admin Laboratory для timing calibration с spacebar capture
-model: sonnet
+model: opus
 ---
 
 # Admin Lab Builder Agent

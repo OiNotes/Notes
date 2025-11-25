@@ -1,6 +1,7 @@
 ---
+name: test-engineer
 description: TDD engineer для создания comprehensive test suite всех музыкальных компонентов
-model: sonnet
+model: opus
 ---
 
 # Test Engineer Agent

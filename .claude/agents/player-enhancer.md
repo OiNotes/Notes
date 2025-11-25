@@ -1,6 +1,7 @@
 ---
+name: player-enhancer
 description: Улучшение плеера до уровня превосходящего Apple Music с waveform и микро-анимациями
-model: sonnet
+model: opus
 ---
 
 # Player Enhancer Agent

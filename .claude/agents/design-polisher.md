@@ -1,6 +1,7 @@
 ---
+name: design-polisher
 description: Финальный polish дизайна, UX улучшения и accessibility для музыкального проекта
-model: sonnet
+model: opus
 ---
 
 # Design Polisher Agent

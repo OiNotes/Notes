@@ -1,0 +1,50 @@
+// Prisma schema for Oi/Notes Music Player
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Track {
+  id        String   @id @default(cuid())
+  artist    String
+  title     String
+  color     String   // Gradient class name (e.g., "from-red-900 via-red-950 to-black")
+  audioPath String   // Path to audio file (e.g., "/uploads/audio/track-123.mp3")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lyrics        Lyric[]
+  strobeMarkers StrobeMarker[]
+
+  @@map("tracks")
+}
+
+model Lyric {
+  id          String  @id @default(cuid())
+  trackId     String
+  original    String  // Original text
+  translation String  // Translation text
+  time        Float   // Timestamp in seconds
+  isSynced    Boolean @default(false)
+  order       Int     // Order of lyrics in track
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("lyrics")
+  @@index([trackId])
+}
+
+model StrobeMarker {
+  id      Int    @id @default(autoincrement())
+  trackId String
+  time    Float
+  track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@map("strobe_markers")
+  @@index([trackId])
+}
