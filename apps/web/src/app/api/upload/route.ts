@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { put } from '@vercel/blob';
 import { randomBytes } from 'crypto';
 
-// POST /api/upload - загрузка аудио файла
+// POST /api/upload - загрузка аудио файла в Vercel Blob
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -25,22 +24,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Генерируем уникальное имя файла
-    const fileExtension = path.extname(file.name);
-    const randomName = randomBytes(16).toString('hex');
-    const fileName = `${randomName}${fileExtension}`;
+    const ext = file.name.split('.').pop();
+    const filename = `audio/${randomBytes(16).toString('hex')}.${ext}`;
 
-    // Сохраняем файл
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
-    const filePath = path.join(uploadDir, fileName);
+    // Загружаем в Vercel Blob
+    const blob = await put(filename, file, {
+      access: 'public',
+      addRandomSuffix: false,
+    });
 
-    await writeFile(filePath, buffer);
-
-    // Возвращаем относительный путь для хранения в БД
-    const audioPath = `/uploads/audio/${fileName}`;
-
-    return NextResponse.json({ audioPath }, { status: 201 });
+    // Возвращаем URL из Vercel Blob
+    return NextResponse.json({ audioPath: blob.url }, { status: 201 });
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
