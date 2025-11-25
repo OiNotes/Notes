@@ -18,6 +18,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { Play, Pause, RotateCcw, SkipBack, SkipForward, Zap } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 
 // --- TYPES ---
 type Track = {
@@ -1504,27 +1505,16 @@ export default function MusicApp() {
         lyricsCount: trackData.lyrics?.length
       });
 
-      // 1. Upload audio file
-      console.log("Step 1: Uploading audio file...");
-      const formData = new FormData();
-      formData.append('audio', trackData.audioFile);
+      // 1. Upload audio file using client-side upload (bypasses 4.5MB serverless limit)
+      console.log("Step 1: Uploading audio file (client-side)...");
 
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      const blob = await upload(trackData.audioFile.name, trackData.audioFile, {
+        access: 'public',
+        handleUploadUrl: '/api/upload/token',
       });
 
-      console.log("Upload response status:", uploadRes.status);
-
-      if (!uploadRes.ok) {
-        const errorText = await uploadRes.text();
-        console.error("Upload failed:", errorText);
-        throw new Error(`Failed to upload audio file: ${errorText}`);
-      }
-
-      const uploadData = await uploadRes.json();
-      console.log("Upload success:", uploadData);
-      const { audioPath } = uploadData;
+      console.log("Upload success:", blob);
+      const audioPath = blob.url;
 
       // 2. Create track in database
       console.log("Step 2: Creating track in database...");
