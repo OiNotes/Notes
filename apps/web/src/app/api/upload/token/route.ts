@@ -8,6 +8,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       onBeforeGenerateToken: async (pathname) => {
         // Validate file type
         if (!pathname.match(/\.(mp3|m4a|wav|ogg|flac|aac)$/i)) {
