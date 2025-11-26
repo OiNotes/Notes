@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   X,
   Upload,
@@ -35,6 +35,7 @@ type Track = {
     isSynced: boolean;
   }[];
   strobeMarkers?: { id: number; time: number }[];
+  category?: 'yours' | 'all';
 };
 
 // --- INITIAL DATA ---
@@ -143,6 +144,40 @@ const Button = ({ onClick, children, variant = 'primary', className = '', disabl
 
   // @ts-ignore
   return <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
+};
+
+// --- CATEGORY TABS ---
+type CategoryFilter = 'all' | 'yours';
+
+const CategoryTabs = ({ 
+  active, 
+  onChange 
+}: { 
+  active: CategoryFilter; 
+  onChange: (cat: CategoryFilter) => void;
+}) => {
+  const tabs: { id: CategoryFilter; label: string }[] = [
+    { id: 'all', label: 'All Songs' },
+    { id: 'yours', label: 'Your Songs' }
+  ];
+  
+  return (
+    <div className="flex gap-2 justify-center mb-6 overflow-x-auto px-4 pb-2 -mx-4 scrollbar-hide">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap min-h-[44px]
+            ${active === tab.id 
+              ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
+              : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
+            }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
 };
 
 // --- VINYL COMPONENTS ---
@@ -260,6 +295,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     color: string;
     audioFile: File;
     lyrics: any[];
+    category: 'yours' | 'all';
   }) => Promise<void>,
   existingTracks?: Track[],
   onEditTrack?: (track: Track) => Promise<void>,
@@ -287,6 +323,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   const [strobeMode, setStrobeMode] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [editingStrobeTrack, setEditingStrobeTrack] = useState<Track | null>(null);
+  const [trackCategory, setTrackCategory] = useState<'yours' | 'all'>('yours');
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
@@ -534,6 +571,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       color: trackColor,
       audioFile: audioFile,
       lyrics: parsedLyrics,
+      category: trackCategory,
     });
     onClose();
   };
@@ -960,6 +998,26 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 </div>
               </div>
 
+              {/* Category Selector */}
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Категория</label>
+                <div className="flex gap-2">
+                  {(['yours', 'all'] as const).map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setTrackCategory(cat)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        trackCategory === cat
+                          ? 'bg-amber-500 text-black'
+                          : 'bg-white/10 text-white/60 hover:bg-white/15 border border-white/10'
+                      }`}
+                    >
+                      {cat === 'yours' ? 'Ваши песни' : 'Все песни'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-4">
                 <Button variant="outline" onClick={() => setStep(2)} className="justify-center"><Mic size={18} /> Re-Sync</Button>
                 <Button variant="secondary" onClick={exportDesign} className="justify-center"><Download size={18} /> Save JSON</Button>
@@ -1256,6 +1314,7 @@ export default function MusicApp() {
   const [playerShowFlash, setPlayerShowFlash] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const [isClimax, setIsClimax] = useState(false); // New State for "Drrr-drrr" ending
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('yours');
   
   // --- AUDIO ANALYSIS STATE ---
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1292,6 +1351,14 @@ export default function MusicApp() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastTapRef = useRef<number>(0);
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Filtered tracks based on category
+  const filteredTracks = useMemo(() => {
+    if (activeCategory === 'all') {
+      return tracks;
+    }
+    return tracks.filter(t => t.category === 'yours' || !t.category);
+  }, [tracks, activeCategory]);
 
   // Touch Gesture Handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -1494,6 +1561,7 @@ export default function MusicApp() {
     color: string;
     audioFile: File;
     lyrics: any[];
+    category: 'yours' | 'all';
   }) => {
     try {
       console.log("Publishing track...", {
@@ -1540,6 +1608,7 @@ export default function MusicApp() {
         color: trackData.color,
         audioPath,
         lyrics: trackData.lyrics,
+        category: trackData.category,
       };
       console.log("Track payload:", trackPayload);
 
@@ -2063,7 +2132,7 @@ export default function MusicApp() {
       />
 
       {/* HEADER */}
-      <header className="relative w-full pt-20 pb-12 flex flex-col items-center justify-center z-10">
+      <header className="relative w-full pt-12 sm:pt-20 pb-8 sm:pb-12 flex flex-col items-center justify-center z-10">
         <div className="flex flex-col items-center gap-2 animate-in fade-in slide-in-from-top-8 duration-1000">
            <div className="text-center space-y-2 group cursor-pointer" onClick={handleHeaderClick}>
               <h1 className="text-3xl md:text-5xl font-serif font-medium text-white tracking-[0.3em] uppercase transition-opacity duration-500 hover:opacity-80">
@@ -2091,17 +2160,23 @@ export default function MusicApp() {
       </header>
 
       {/* TRACKS GRID */}
-      <div className="w-full pb-32 px-4 md:px-12">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 md:gap-y-20">
-            {tracks.map((track) => (
+      <div className="w-full pb-32 px-3 sm:px-4 md:px-12">
+        <main className="max-w-7xl mx-auto px-3 sm:px-6 relative z-10">
+          {/* CATEGORY TABS */}
+          <CategoryTabs 
+            active={activeCategory} 
+            onChange={setActiveCategory} 
+          />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 sm:gap-y-8 md:gap-y-20">
+            {filteredTracks.map((track) => (
               <div
                 key={track.id}
                 onClick={() => handleSelectTrack(track)}
-                className="group cursor-pointer relative flex flex-col sm:flex-row items-center sm:items-center p-4 rounded-3xl hover:bg-white/[0.02] transition-colors min-h-[200px] sm:h-64 overflow-hidden"
+                className="group cursor-pointer relative flex flex-col sm:flex-row items-center sm:items-center p-4 rounded-3xl hover:bg-white/[0.02] transition-colors min-h-[160px] sm:min-h-[200px] sm:h-64 overflow-hidden"
               >
                 {/* 1. Конверт (Cover Art Container) */}
-                <div className="relative z-20 w-40 h-40 sm:w-44 md:w-48 sm:h-44 md:h-48 bg-[#0f0f0f] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-sm flex flex-col justify-between p-4 md:p-5 border border-white/5 sm:group-hover:-translate-x-4 transition-transform duration-700 ease-out shrink-0">
+                <div className="relative z-20 w-32 h-32 sm:w-44 md:w-48 sm:h-44 md:h-48 bg-[#0f0f0f] shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-sm flex flex-col justify-between p-4 md:p-5 border border-white/5 sm:group-hover:-translate-x-4 transition-transform duration-700 ease-out shrink-0">
                   <div className="w-full h-full opacity-20 absolute inset-0 blur-xl" style={{ background: getColorTheme(track.color).gradient }} />
                   <div className="relative z-10 text-[10px] text-gray-500 font-mono uppercase tracking-widest">Stereo</div>
                   <div className="relative z-10 font-lyrics text-2xl text-gray-200 leading-none truncate">{track.artist}</div>
@@ -2114,7 +2189,7 @@ export default function MusicApp() {
 
                 {/* 3. Название (Title) */}
                 <div className="mt-4 sm:mt-0 sm:ml-44 md:ml-48 sm:pl-8 md:pl-12 flex flex-col justify-center sm:border-l border-white/5 sm:h-32 group-hover:border-amber-500/30 transition-colors w-full sm:w-auto">
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-lyrics italic text-gray-400 group-hover:text-white transition-colors duration-300 text-center sm:text-left">
+                  <h3 className="text-xl sm:text-2xl md:text-4xl font-lyrics italic text-gray-400 group-hover:text-white transition-colors duration-300 text-center sm:text-left">
                     {track.title}
                   </h3>
                 </div>

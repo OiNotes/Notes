@@ -32,6 +32,7 @@ export async function GET() {
       title: track.title,
       color: track.color,
       audioSrc: track.audioPath,
+      category: track.category,
       lyrics: track.lyrics.map(lyric => ({
         id: lyric.id,
         original: lyric.original,
@@ -59,7 +60,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { artist, title, color, audioPath, lyrics, strobeMarkers } = body;
+    const { artist, title, color, audioPath, lyrics, strobeMarkers, category } = body;
 
     // Валидация
     if (!artist || !title || !color || !audioPath) {
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         title,
         color,
         audioPath,
+        category: category || 'yours',
         lyrics: {
           create: lyrics?.map((lyric: any, index: number) => ({
             original: lyric.original || '',
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
       title: track.title,
       color: track.color,
       audioSrc: track.audioPath,
+      category: track.category,
       lyrics: track.lyrics.map(lyric => ({
         id: lyric.id,
         original: lyric.original,
