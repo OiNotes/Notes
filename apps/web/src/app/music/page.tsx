@@ -1942,7 +1942,7 @@ export default function MusicApp() {
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans flex flex-col selection:bg-amber-500 selection:text-black" style={{ backgroundColor: '#050505' }}>
+    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans flex flex-col overflow-hidden selection:bg-amber-500 selection:text-black" style={{ backgroundColor: '#050505' }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -2191,10 +2191,10 @@ export default function MusicApp() {
       </div>
 
       {/* TRACKS GRID - Scrollable Area */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto overscroll-contain">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-2 pb-[env(safe-area-inset-bottom,24px)]">
+      <div className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-2 pb-4">
           
-          <div className="flex flex-col sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-x-16 sm:gap-y-8 md:gap-y-20">
+          <div className="flex flex-col gap-1 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-x-8 sm:gap-y-4 md:gap-y-6">
             {filteredTracks.map((track, index) => (
               <div
                 key={track.id}
