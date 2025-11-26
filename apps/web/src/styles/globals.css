@@ -31,8 +31,8 @@
 html,
 body {
   height: 100%;
-  overflow-x: hidden;
-  /* Предотвращаем глобальный горизонтальный скролл */
+  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 body {

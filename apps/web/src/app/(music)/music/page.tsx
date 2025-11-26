@@ -150,23 +150,23 @@ const Button = ({ onClick, children, variant = 'primary', className = '', disabl
 // --- CATEGORY TABS ---
 type CategoryFilter = 'all' | 'yours';
 
-const CategoryTabs = ({ 
-  active, 
-  onChange 
-}: { 
-  active: CategoryFilter; 
+const CategoryTabs = ({
+  active,
+  onChange
+}: {
+  active: CategoryFilter;
   onChange: (cat: CategoryFilter) => void;
 }) => {
   const tabs: { id: CategoryFilter; label: string }[] = [
-    { id: 'all', label: 'Все песни' },
-    { id: 'yours', label: 'Ваши песни' }
+    { id: 'all', label: 'Ваши песни' },
+    { id: 'yours', label: 'Мои песни' }
   ];
-  
+
   return (
-    <div className="w-full max-w-[340px] mx-auto mb-6 sm:mb-10 px-4 sm:px-0">
-      <div className="relative flex items-center bg-white/10 p-1 rounded-xl h-[40px]">
+    <div className="w-full max-w-[340px] mx-auto px-4 sm:px-0">
+      <div className="relative flex items-center bg-white/10 p-1 rounded-xl h-[36px]">
         {/* Sliding Indicator */}
-        <div 
+        <div
           className={`absolute top-1 bottom-1 rounded-lg bg-white/20 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
             ${active === 'all' ? 'left-1 w-[calc(50%-4px)]' : 'left-[50%] w-[calc(50%-4px)]'}
           `}
@@ -1366,11 +1366,13 @@ export default function MusicApp() {
   const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Filtered tracks based on category
+  // "Ваши песни" (all) = category === 'yours' (от разработчика)
+  // "Мои песни" (yours) = category !== 'yours' (пользовательские)
   const filteredTracks = useMemo(() => {
     if (activeCategory === 'all') {
-      return tracks;
+      return tracks.filter(t => t.category === 'yours');
     }
-    return tracks.filter(t => t.category === 'yours' || !t.category);
+    return tracks.filter(t => t.category !== 'yours');
   }, [tracks, activeCategory]);
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -1942,7 +1944,7 @@ export default function MusicApp() {
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-[#050505] text-white font-sans flex flex-col overflow-hidden selection:bg-amber-500 selection:text-black" style={{ backgroundColor: '#050505' }}>
+    <div className="h-full w-full flex flex-col bg-[#050505] text-white font-sans overflow-hidden selection:bg-amber-500 selection:text-black">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
@@ -2163,13 +2165,13 @@ export default function MusicApp() {
         }}
       />
 
-      {/* UNIFIED HEADER (Static Flex Item) */}
-      <div className="shrink-0 z-40 w-full bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5 supports-[backdrop-filter]:bg-[#050505]/60">
-        <div className="max-w-7xl mx-auto px-6 pt-14 pb-2">
+      {/* UNIFIED HEADER (Grid auto row) */}
+      <div className="z-40 w-full bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5 supports-[backdrop-filter]:bg-[#050505]/60">
+        <div className="max-w-7xl mx-auto px-6 pt-11 pb-0">
           {/* Title Row */}
-          <div className="flex items-end justify-between mb-4">
-             <div className="flex flex-col items-start animate-in fade-in slide-in-from-top-4 duration-700">
-                <h1 className="text-[32px] font-bold text-white tracking-tight leading-none font-lyrics">Collection</h1>
+          <div className="flex items-end justify-between mb-1">
+             <div className="flex flex-col items-start">
+                <h1 className="text-[28px] font-bold text-white tracking-tight leading-none font-lyrics">Collection</h1>
              </div>
              
              {/* Admin Action (Minimalist) */}
@@ -2184,26 +2186,26 @@ export default function MusicApp() {
           </div>
 
           {/* Tabs Row */}
-          <div className="pb-2">
+          <div className="py-2">
              <CategoryTabs active={activeCategory} onChange={setActiveCategory} />
           </div>
         </div>
       </div>
 
-      {/* TRACKS GRID - Scrollable Area */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-2 pb-4">
+      {/* TRACKS GRID - Scrollable Area (Flex 1) */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-1 pb-32 min-h-full">
           
-          <div className="flex flex-col gap-1 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-x-8 sm:gap-y-4 md:gap-y-6">
+          <div className="flex flex-col gap-0 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-x-6 sm:gap-y-2 md:gap-y-3">
             {filteredTracks.map((track, index) => (
               <div
                 key={track.id}
                 onClick={() => handleSelectTrack(track)}
-                className="group cursor-pointer relative flex flex-row items-center py-3 sm:p-4 rounded-xl hover:bg-white/[0.04] active:scale-[0.98] transition-all duration-200 sm:hover:bg-white/[0.02]"
+                className="group cursor-pointer relative flex flex-row items-center py-2 sm:py-3 sm:px-3 rounded-xl hover:bg-white/[0.04] active:scale-[0.98] transition-all duration-200 sm:hover:bg-white/[0.02]"
                 style={{ animationDelay: `${index * 30}ms` }}
               >
                 {/* 1. Cover Art - Supercleancut */}
-                <div className="relative w-[52px] h-[52px] sm:w-20 sm:h-20 rounded-[10px] sm:rounded-xl overflow-hidden shadow-md shrink-0 mr-4 bg-[#1c1c1c] group-hover:shadow-lg transition-shadow">
+                <div className="relative w-[48px] h-[48px] sm:w-16 sm:h-16 rounded-lg sm:rounded-xl overflow-hidden shadow-md shrink-0 mr-3 bg-[#1c1c1c] group-hover:shadow-lg transition-shadow">
                    {/* Gradient Placeholder */}
                    <div className="absolute inset-0" style={{ background: getColorTheme(track.color).gradient }} />
                    
@@ -2222,11 +2224,11 @@ export default function MusicApp() {
                 </div>
 
                 {/* 2. Info & Separator */}
-                <div className="flex-1 flex flex-col justify-center min-w-0 pr-3 h-[52px] sm:h-auto relative overflow-hidden">
-                  <h3 className={`text-[16px] font-medium leading-snug truncate w-full transition-colors ${activeTrack?.id === track.id ? 'text-amber-400' : 'text-white group-hover:text-white/90'}`}>
+                <div className="flex-1 flex flex-col justify-center min-w-0 pr-2 h-[48px] sm:h-auto relative overflow-hidden">
+                  <h3 className={`text-[15px] sm:text-base font-medium leading-tight truncate w-full transition-colors ${activeTrack?.id === track.id ? 'text-amber-400' : 'text-white group-hover:text-white/90'}`}>
                     {track.title}
                   </h3>
-                  <p className="text-[14px] text-white/40 truncate w-full font-medium mt-0.5">
+                  <p className="text-[13px] sm:text-sm text-white/40 truncate w-full font-medium mt-0.5">
                     {track.artist}
                   </p>
                   
@@ -2234,9 +2236,9 @@ export default function MusicApp() {
                   <div className="absolute bottom-[-12px] left-0 right-0 h-px bg-white/[0.03] sm:hidden group-last:hidden" />
                 </div>
 
-                {/* 3. Actions (More Button) */}
-                <button 
-                  className="p-3 -mr-2 rounded-full text-white/20 hover:text-white transition-colors opacity-0 group-hover:opacity-100 sm:opacity-100"
+                {/* 3. Actions (More Button) - hidden on mobile for more text space */}
+                <button
+                  className="hidden sm:block p-2 -mr-1 rounded-full text-white/20 hover:text-white transition-colors"
                   onClick={(e) => { e.stopPropagation(); /* Handle menu */ }}
                 >
                   <MoreVertical size={18} />
