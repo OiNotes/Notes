@@ -543,6 +543,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
+        crossOrigin="anonymous"
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -1002,6 +1003,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
             <audio
               ref={audioRef}
               src={audioUrl || editingStrobeTrack.audioSrc || ''}
+              crossOrigin="anonymous"
               onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
               onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
             />
@@ -2048,6 +2050,7 @@ export default function MusicApp() {
         ref={mainAudioRef}
         key={activeTrack?.id} // Force remount on track change
         src={activeTrack?.audioSrc || undefined}
+        crossOrigin="anonymous"
         preload="auto"
         onTimeUpdate={handleMainTimeUpdate}
         onLoadedData={() => console.log("Audio loaded:", activeTrack?.audioSrc)}
