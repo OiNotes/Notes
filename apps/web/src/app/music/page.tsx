@@ -1504,29 +1504,30 @@ export default function MusicApp() {
         lyricsCount: trackData.lyrics?.length
       });
 
-      // 1. Check file size (Vercel serverless limit ~4MB)
-      const MAX_SIZE = 4 * 1024 * 1024; // 4MB
-      if (trackData.audioFile.size > MAX_SIZE) {
-        const sizeMB = (trackData.audioFile.size / 1024 / 1024).toFixed(1);
-        throw new Error(`Файл слишком большой (${sizeMB}MB). Максимум 4MB. Сожми аудио перед загрузкой.`);
+      // 1. Upload audio to Cloudinary (no size limit, bypasses Vercel 4.5MB limit)
+      console.log("Step 1: Uploading audio to Cloudinary...");
+
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', trackData.audioFile);
+      cloudinaryFormData.append('upload_preset', 'Oi notes');
+      cloudinaryFormData.append('resource_type', 'video'); // Cloudinary uses 'video' for audio
+
+      const cloudinaryRes = await fetch(
+        'https://api.cloudinary.com/v1_1/djtbtkddr/video/upload',
+        {
+          method: 'POST',
+          body: cloudinaryFormData,
+        }
+      );
+
+      if (!cloudinaryRes.ok) {
+        const errData = await cloudinaryRes.json().catch(() => ({}));
+        console.error('Cloudinary error:', errData);
+        throw new Error(errData.error?.message || 'Failed to upload audio');
       }
 
-      // 2. Upload audio file via server
-      console.log("Step 1: Uploading audio file...");
-      const formData = new FormData();
-      formData.append('audio', trackData.audioFile);
-
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        const err = await uploadRes.json();
-        throw new Error(err.details || 'Failed to upload audio');
-      }
-
-      const { audioPath } = await uploadRes.json();
+      const cloudinaryData = await cloudinaryRes.json();
+      const audioPath = cloudinaryData.secure_url;
       console.log("Upload success:", audioPath);
 
       // 2. Create track in database
