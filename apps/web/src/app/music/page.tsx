@@ -2048,7 +2048,10 @@ export default function MusicApp() {
         ref={mainAudioRef}
         key={activeTrack?.id} // Force remount on track change
         src={activeTrack?.audioSrc || undefined}
+        preload="auto"
         onTimeUpdate={handleMainTimeUpdate}
+        onLoadedData={() => console.log("Audio loaded:", activeTrack?.audioSrc)}
+        onError={(e) => console.error("Audio error:", e.currentTarget.error)}
         onEnded={() => {
           setIsPlaying(false);
           setIsTonearmMoving(false);
