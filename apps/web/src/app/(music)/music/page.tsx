@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Play, Pause, RotateCcw, SkipBack, SkipForward, Zap, MoreHorizontal } from 'lucide-react';
 
+import { PlaceboVisualizer } from '../../../components/placebo-visualizer';
+
 // --- TYPES ---
 type Track = {
   id: string;
@@ -35,6 +37,7 @@ type Track = {
     translation: string;
     time: number;
     isSynced: boolean;
+    isAppend?: boolean;
   }[];
   strobeMarkers?: { id: number; time: number }[];
   category?: 'yours' | 'all';
@@ -484,10 +487,11 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     artist: string;
     title: string;
     color: string;
-    audioFile: File;
+    audioFile: File | null;
     lyrics: any[];
     category: 'yours' | 'all';
     coverFile?: File | null;
+    id?: string;
   }) => Promise<void>,
   existingTracks?: Track[],
   onEditTrack?: (track: Track) => Promise<void>,
@@ -522,6 +526,54 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   const audioRef = useRef<HTMLAudioElement>(null);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
+  // Helper to load existing track for full editing (Design)
+  const loadTrackForEditing = (track: Track) => {
+      setEditingTrackId(track.id);
+      setArtistName(track.artist);
+      setTrackTitle(track.title);
+      setTrackColor(track.color);
+      setAudioUrl(track.audioSrc || null);
+      
+      const lyrics = track.syncedLyrics || track.lyrics || [];
+      setParsedLyrics(lyrics);
+
+      // Reconstruct raw lyrics
+      let raw = "";
+      let currentOrig = "";
+      let currentTrans = "";
+      
+      // @ts-ignore
+      for(let i=0; i<lyrics.length; i++) {
+          const l: any = lyrics[i];
+          if (typeof l === 'string') {
+              raw += l + "\n\n"; 
+              continue;
+          }
+          
+          if (l.isAppend) {
+              currentOrig += " / " + l.original;
+              if (l.translation) currentTrans += " / " + l.translation;
+          } else {
+              if (currentOrig) {
+                  raw += currentOrig + "\n" + currentTrans + "\n\n";
+              }
+              currentOrig = l.original;
+              currentTrans = l.translation || "";
+          }
+      }
+      if (currentOrig) {
+          raw += currentOrig + "\n" + currentTrans;
+      }
+      setRawLyrics(raw.trim());
+
+      setHasJsonLoaded(true); // Treat as if design is loaded
+      setTrackCategory(track.category || 'yours');
+      if (track.coverUrl) setCoverPreview(track.coverUrl);
+      
+      // Skip upload, go to studio
+      setStep(3);
+  };
+
   // --- LOGIC: STEP 1 (UPLOAD) ---
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -554,57 +606,88 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     if (parseMode === 'alternating') {
       // Alternating Mode (Original / Translation)
       for (let i = 0; i < lines.length; i += 2) {
-        pairs.push({
-          id: Date.now() + i,
-          original: lines[i]?.trim() || "...",
-          translation: lines[i + 1]?.trim() || "",
-          time: 0,
-          isSynced: false
+        const rawOriginal = lines[i]?.trim() || "...";
+        const rawTranslation = lines[i + 1]?.trim() || "";
+
+        // Handle Chaining (/) in Original line
+        const originalParts = rawOriginal.split('/');
+        // Handle Chaining (/) in Translation line if present
+        // If translation has NO slashes, we attach it ONLY to the first part.
+        // If translation HAS slashes, we try to match parts.
+        const transParts = rawTranslation.includes('/') ? rawTranslation.split('/') : [rawTranslation];
+
+        originalParts.forEach((part, idx) => {
+           // If translation parts are fewer than original parts, subsequent parts get empty string
+           // If translation was NOT split (single string), only idx 0 gets it.
+           let trans = "";
+           if (rawTranslation.includes('/')) {
+               trans = transParts[idx]?.trim() || "";
+           } else {
+               trans = idx === 0 ? rawTranslation.trim() : "";
+           }
+
+           pairs.push({
+              id: Date.now() + i + idx * 100, // Unique ID
+              original: part.trim(),
+              translation: trans,
+              time: 0,
+              isSynced: false,
+              isAppend: idx > 0 // Mark as append if it's a subsequent part
+           });
         });
       }
     } else {
-      // Auto-Detect Mode (Cyrillic = Translation)
-      let currentPair: any = null;
+      // Auto-Detect Mode
+      let groupedPairs: {original: string, translation: string}[] = [];
+      let currentGroup: any = null;
 
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         const isCyrillic = /[а-яёА-ЯЁ]/.test(line);
 
         if (isCyrillic) {
-          // It's a translation
-          if (currentPair) {
-            currentPair.translation = line;
-            pairs.push(currentPair);
-            currentPair = null;
+          // Translation
+          if (currentGroup) {
+            currentGroup.translation = line;
+            groupedPairs.push(currentGroup);
+            currentGroup = null;
           } else {
-            // Orphaned translation (shouldn't happen ideally, but handle it)
-            pairs.push({
-              id: Date.now() + i,
-              original: "...",
-              translation: line,
-              time: 0,
-              isSynced: false
-            });
+            groupedPairs.push({ original: "...", translation: line });
           }
         } else {
-          // It's an original line
-          if (currentPair) {
-            // Push previous pair if it had no translation
-            pairs.push(currentPair);
-          }
-          currentPair = {
-            id: Date.now() + i,
-            original: line,
-            translation: "", // Waiting for translation
-            time: 0,
-            isSynced: false
-          };
+          // Original
+          if (currentGroup) groupedPairs.push(currentGroup);
+          currentGroup = { original: line, translation: "" };
         }
       }
-      // Push last pair if exists
-      if (currentPair) {
-        pairs.push(currentPair);
-      }
+      if (currentGroup) groupedPairs.push(currentGroup);
+
+      // Now process groupedPairs and handle splitting
+      groupedPairs.forEach((pair, i) => {
+          const rawOriginal = pair.original;
+          const rawTranslation = pair.translation;
+          
+          const origParts = rawOriginal.split('/');
+          const transParts = rawTranslation.includes('/') ? rawTranslation.split('/') : [rawTranslation];
+          
+          origParts.forEach((part, idx) => {
+              let trans = "";
+              if (rawTranslation.includes('/')) {
+                   trans = transParts[idx]?.trim() || "";
+              } else {
+                   trans = idx === 0 ? rawTranslation.trim() : "";
+              }
+
+              pairs.push({
+                  id: Date.now() + i * 100 + idx,
+                  original: part.trim(),
+                  translation: trans,
+                  time: 0,
+                  isSynced: false,
+                  isAppend: idx > 0
+              });
+          });
+      });
     }
 
     setParsedLyrics(pairs);
@@ -650,34 +733,105 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   }, []);
 
   // --- LOGIC: STEP 2 (SYNC) ---
-  const handleSpacebar = useCallback((e: KeyboardEvent) => {
+  // --- LOGIC: STEP 2 (SYNC ENHANCED) ---
+  const handleSyncKeys = useCallback((e: KeyboardEvent) => {
     if (step !== 2) return;
+
+    // 1. SYNC (Space)
     if (e.code === 'Space') {
       e.preventDefault();
+      
+      // Auto-start if paused
       if (!isPlaying) {
         audioRef.current?.play();
         return;
       }
-      setParsedLyrics(prev => {
-        const nextIndex = prev.findIndex(l => !l.isSynced);
-        if (nextIndex !== -1) {
-          const newLyrics = [...prev];
-          newLyrics[nextIndex] = {
-            ...newLyrics[nextIndex],
-            time: audioRef.current ? audioRef.current.currentTime : 0,
-            isSynced: true
-          };
-          setActiveLineIndex(nextIndex);
-          if (lyricsContainerRef.current) {
-            const element = document.getElementById(`lyric-row-${nextIndex}`);
-            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          return newLyrics;
-        }
-        return prev;
-      });
+
+      // Sync CURRENT selected line
+      if (activeLineIndex !== -1 && activeLineIndex < parsedLyrics.length) {
+         const currentTime = audioRef.current ? audioRef.current.currentTime : 0;
+         
+         setParsedLyrics(prev => {
+             const newLyrics = [...prev];
+             newLyrics[activeLineIndex] = {
+                 ...newLyrics[activeLineIndex],
+                 time: currentTime,
+                 isSynced: true
+             };
+             return newLyrics;
+         });
+
+         // Move to next
+         const nextIndex = Math.min(parsedLyrics.length - 1, activeLineIndex + 1);
+         setActiveLineIndex(nextIndex);
+         
+         // Scroll
+         const element = document.getElementById(`lyric-row-${nextIndex}`);
+         if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
-  }, [step, isPlaying]);
+
+    // 2. UNDO / BACK (Backspace)
+    if (e.code === 'Backspace') {
+        e.preventDefault();
+        // Go back to prev line and clear it
+        const targetIndex = activeLineIndex > 0 ? activeLineIndex - 1 : 0;
+        
+        setParsedLyrics(prev => {
+            const newLyrics = [...prev];
+            newLyrics[targetIndex] = {
+                ...newLyrics[targetIndex],
+                isSynced: false,
+                time: 0
+            };
+            return newLyrics;
+        });
+        
+        setActiveLineIndex(targetIndex);
+        
+        // Rewind audio a bit (2s) to help catch up
+        if (audioRef.current) {
+            audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 2);
+        }
+
+        const element = document.getElementById(`lyric-row-${targetIndex}`);
+        if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // 3. NAVIGATION (Arrows)
+    if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        const newIndex = Math.max(0, activeLineIndex - 1);
+        setActiveLineIndex(newIndex);
+        const element = document.getElementById(`lyric-row-${newIndex}`);
+        if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        const newIndex = Math.min(parsedLyrics.length - 1, activeLineIndex + 1);
+        setActiveLineIndex(newIndex);
+        const element = document.getElementById(`lyric-row-${newIndex}`);
+        if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        skip(-5);
+    }
+    
+    if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        skip(5);
+    }
+
+  }, [step, isPlaying, activeLineIndex, parsedLyrics.length]);
+
+  // Attach Key Listeners
+  useEffect(() => {
+    window.addEventListener('keydown', handleSyncKeys);
+    return () => window.removeEventListener('keydown', handleSyncKeys);
+  }, [handleSyncKeys]);
 
   const handleStrobeKey = useCallback((e: KeyboardEvent) => {
     // Work in Step 2 (Sync) or Step 4 (Strobe Editor)
@@ -700,10 +854,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     }
   }, [step, strobeMode, triggerFlash]);
 
-  useEffect(() => {
-    window.addEventListener('keydown', handleSpacebar);
-    return () => window.removeEventListener('keydown', handleSpacebar);
-  }, [handleSpacebar]);
+
 
   useEffect(() => {
     window.addEventListener('keydown', handleStrobeKey);
@@ -764,6 +915,22 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   };
 
   const handleFinalPublish = async () => {
+    // Update existing track
+    if (editingTrackId) {
+         await onPublish({
+             artist: artistName,
+             title: trackTitle,
+             color: trackColor,
+             audioFile: audioFile, // Can be null
+             lyrics: parsedLyrics,
+             category: trackCategory,
+             coverFile: coverFile,
+             id: editingTrackId
+         });
+         onClose();
+         return;
+    }
+
     if (!audioFile) {
       alert("Сначала загрузите аудиофайл");
       return;
@@ -943,6 +1110,13 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => loadTrackForEditing(track)}
+                            className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors"
+                            title="Редактировать дизайн"
+                          >
+                            <Edit3 size={16} />
+                          </button>
                           <button
                             onClick={() => {
                               // Загрузить трек для редактирования стробоскопов
@@ -1174,21 +1348,72 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
               </div>
             </div>
             <div className="flex-1 overflow-y-auto relative bg-black rounded-xl border border-white/10 p-6 mask-linear" ref={lyricsContainerRef}>
-              <div className="space-y-8 pb-[50vh] pt-[20vh]">
+              <div className="space-y-4 pb-[50vh] pt-[20vh]">
                 {parsedLyrics.map((line, index) => {
                   const isActive = index === activeLineIndex;
                   return (
-                    <div key={line.id} id={`lyric-row-${index}`} className={`transition-all duration-300 flex flex-col gap-1 pl-4 border-l-4 ${isActive ? 'border-amber-500 opacity-100' : 'border-transparent opacity-40'}`}>
-                      <div className={`font-lyrics text-3xl md:text-4xl ${isActive ? 'text-white' : 'text-white/60'}`}>{line.original}</div>
-                      <div className={`text-sm font-sans ${isActive ? 'text-amber-500' : 'text-white/40'}`}>{line.translation}</div>
+                    <div 
+                      key={line.id} 
+                      id={`lyric-row-${index}`} 
+                      onClick={() => {
+                          setActiveLineIndex(index);
+                          if (line.isSynced && audioRef.current) {
+                              audioRef.current.currentTime = line.time;
+                          }
+                      }}
+                      className={`transition-all duration-200 flex flex-col gap-1 p-3 border-l-4 rounded-r-lg cursor-pointer hover:bg-white/5 ${
+                          isActive 
+                            ? 'border-amber-500 bg-white/5 opacity-100' 
+                            : line.isSynced 
+                                ? 'border-green-500/50 opacity-60' 
+                                : 'border-transparent opacity-30'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                         <div className={`font-lyrics text-2xl md:text-3xl ${isActive || line.isSynced ? 'text-white' : 'text-white/60'}`}>
+                             {line.original}
+                         </div>
+                         <div className="flex items-center gap-3">
+                             {line.isSynced && (
+                                 <span className="font-mono text-xs text-amber-500 bg-black/50 px-2 py-1 rounded">
+                                     {line.time.toFixed(2)}s
+                                 </span>
+                             )}
+                             {line.isSynced && (
+                                 <button 
+                                     onClick={(e) => {
+                                         e.stopPropagation();
+                                         setParsedLyrics(prev => {
+                                             const n = [...prev];
+                                             n[index] = { ...n[index], isSynced: false, time: 0 };
+                                             return n;
+                                         });
+                                     }}
+                                     className="text-white/20 hover:text-red-500 transition-colors p-1"
+                                 >
+                                     <X size={14} />
+                                 </button>
+                             )}
+                         </div>
+                      </div>
+                      <div className={`text-sm font-sans ${isActive ? 'text-amber-500' : 'text-white/40'}`}>
+                          {line.translation}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-            <div className="mt-6 flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Назад</Button>
-              <Button onClick={() => setStep(3)}>Finish & Edit <Check size={18} /></Button>
+            <div className="mt-6 flex justify-between items-center text-xs text-white/30 font-mono">
+              <div className="flex gap-4">
+                  <span>[SPACE] Запись</span>
+                  <span>[BACKSPACE] Отмена</span>
+                  <span>[ARROWS] Навигация</span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep(1)}>Назад</Button>
+                <Button onClick={() => setStep(3)}>Finish & Edit <Check size={18} /></Button>
+              </div>
             </div>
           </div>
         )}
@@ -1233,8 +1458,49 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 <div className="text-center relative z-10 max-w-xl h-32 flex flex-col justify-center">
                   {activeLineIndex !== -1 && parsedLyrics[activeLineIndex] ? (
                     <>
-                      <div className="text-3xl md:text-5xl font-lyrics italic text-white animate-in fade-in slide-in-from-bottom-2 duration-300">{parsedLyrics[activeLineIndex].translation}</div>
-                      <div className="text-xl text-white/50 font-serif mt-2 animate-in fade-in duration-500">{parsedLyrics[activeLineIndex].original}</div>
+                      <div className="text-3xl md:text-5xl font-lyrics italic text-white animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        {(() => {
+                            const current = parsedLyrics[activeLineIndex];
+                            if (current.isAppend) {
+                                // Find previous non-append line to show context?
+                                // Actually, user wants "Text / Append" to show together.
+                                // If current is append, we should show "Prev ... Current".
+                                // But we need to find how many appends back.
+                                let text = current.translation || current.original;
+                                let prevIdx = activeLineIndex - 1;
+                                while (prevIdx >= 0 && parsedLyrics[prevIdx + 1].isAppend) { // If CURRENT (prevIdx+1) is append, grab prev
+                                   // Wait, logic:
+                                   // If current line is #2 (Append), we want #1 + #2.
+                                   // We iterate backwards.
+                                   const prev = parsedLyrics[prevIdx];
+                                   text = (prev.translation || prev.original) + " " + text;
+                                   if (!parsedLyrics[prevIdx].isAppend) break; // Stop if we hit a start line (not append)
+                                   // Wait, if #1 is NOT append, we stop AFTER adding it. Correct.
+                                   // But if #1 was also append (to #0), we continue.
+                                   prevIdx--;
+                                }
+                                return text;
+                            }
+                            return current.translation || current.original;
+                        })()}
+                      </div>
+                      <div className="text-xl text-white/50 font-serif mt-2 animate-in fade-in duration-500">
+                         {(() => {
+                            const current = parsedLyrics[activeLineIndex];
+                            if (current.isAppend) {
+                                let text = current.original;
+                                let prevIdx = activeLineIndex - 1;
+                                while (prevIdx >= 0 && parsedLyrics[prevIdx + 1].isAppend) {
+                                   const prev = parsedLyrics[prevIdx];
+                                   text = prev.original + " " + text;
+                                   if (!parsedLyrics[prevIdx].isAppend) break;
+                                   prevIdx--;
+                                }
+                                return text;
+                            }
+                            return current.original;
+                        })()}
+                      </div>
                     </>
                   ) : <div className="text-white/20">Предпросмотр</div>}
                 </div>
@@ -1858,111 +2124,91 @@ export default function MusicApp() {
     artist: string;
     title: string;
     color: string;
-    audioFile: File;
+    audioFile: File | null;
     lyrics: any[];
     category: 'yours' | 'all';
     coverFile?: File | null;
+    id?: string; // Added optional ID
   }) => {
     try {
-      console.log("Publishing track...", {
-        artist: trackData.artist,
-        title: trackData.title,
-        color: trackData.color,
-        audioFileName: trackData.audioFile?.name,
-        audioFileSize: trackData.audioFile?.size,
-        audioFileType: trackData.audioFile?.type,
-        lyricsCount: trackData.lyrics?.length,
-        hasCover: !!trackData.coverFile
-      });
+      console.log("Publishing/Updating track...", trackData);
 
-      // 1. Upload cover image to Cloudinary if exists
+      let audioPath = '';
       let coverUrl = '';
+
+      // 1. Cover Upload
       if (trackData.coverFile) {
-        console.log("Step 1a: Uploading cover image to Cloudinary...");
         const coverFormData = new FormData();
         coverFormData.append('file', trackData.coverFile);
         coverFormData.append('upload_preset', 'Oi notes');
-
-        const coverRes = await fetch(
-          'https://api.cloudinary.com/v1_1/djtbtkddr/image/upload',
-          {
-            method: 'POST',
-            body: coverFormData,
-          }
-        );
-
+        const coverRes = await fetch('https://api.cloudinary.com/v1_1/djtbtkddr/image/upload', { method: 'POST', body: coverFormData });
         if (coverRes.ok) {
-          const coverData = await coverRes.json();
-          coverUrl = coverData.secure_url;
-          console.log("Cover upload success:", coverUrl);
-        } else {
-          console.warn("Cover upload failed, continuing without cover");
+           const d = await coverRes.json();
+           coverUrl = d.secure_url;
         }
       }
 
-      // 2. Upload audio to Cloudinary (no size limit, bypasses Vercel 4.5MB limit)
-      console.log("Step 2: Uploading audio to Cloudinary...");
-
-      const cloudinaryFormData = new FormData();
-      cloudinaryFormData.append('file', trackData.audioFile);
-      cloudinaryFormData.append('upload_preset', 'Oi notes');
-      cloudinaryFormData.append('resource_type', 'video'); // Cloudinary uses 'video' for audio
-
-      const cloudinaryRes = await fetch(
-        'https://api.cloudinary.com/v1_1/djtbtkddr/video/upload',
-        {
-          method: 'POST',
-          body: cloudinaryFormData,
-        }
-      );
-
-      if (!cloudinaryRes.ok) {
-        const errData = await cloudinaryRes.json().catch(() => ({}));
-        console.error('Cloudinary error:', errData);
-        throw new Error(errData.error?.message || 'Failed to upload audio');
+      // 2. Audio Upload (only if file provided)
+      if (trackData.audioFile) {
+          const cloudinaryFormData = new FormData();
+          cloudinaryFormData.append('file', trackData.audioFile);
+          cloudinaryFormData.append('upload_preset', 'Oi notes');
+          cloudinaryFormData.append('resource_type', 'video');
+          const cloudinaryRes = await fetch('https://api.cloudinary.com/v1_1/djtbtkddr/video/upload', { method: 'POST', body: cloudinaryFormData });
+          if (cloudinaryRes.ok) {
+              const d = await cloudinaryRes.json();
+              audioPath = d.secure_url;
+          }
       }
 
-      const cloudinaryData = await cloudinaryRes.json();
-      const audioPath = cloudinaryData.secure_url;
-      console.log("Upload success:", audioPath);
-
-      // 2. Create track in database
-      console.log("Step 3: Creating track in database...");
-      const trackPayload = {
+      const payload: any = {
         artist: trackData.artist,
         title: trackData.title,
         color: trackData.color,
-        audioPath,
-        coverUrl,
         lyrics: trackData.lyrics,
         category: trackData.category,
       };
-      console.log("Track payload:", trackPayload);
+      if (audioPath) payload.audioPath = audioPath;
+      if (coverUrl) payload.coverUrl = coverUrl;
 
-      const createRes = await fetch('/api/tracks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(trackPayload),
-      });
-
-      console.log("Create track response status:", createRes.status);
-
-      if (!createRes.ok) {
-        const errorText = await createRes.text();
-        console.error("Create track failed:", errorText);
-        throw new Error(`Failed to create track: ${errorText}`);
+      let res;
+      if (trackData.id) {
+          // UPDATE
+          res = await fetch(`/api/tracks/${trackData.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          });
+      } else {
+          // CREATE
+          if (!audioPath) throw new Error("Audio file required for new tracks");
+          payload.audioPath = audioPath; // Ensure it's set
+          res = await fetch('/api/tracks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          });
       }
 
-      const createdTrack = await createRes.json();
-      console.log("Track created successfully:", createdTrack);
+      if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error("Save Error Details:", errorData);
+          throw new Error("Failed to save track: " + (errorData.details || errorData.error || "Unknown error"));
+      }
+      
+      const savedTrack = await res.json();
+      
+      setTracks(prev => {
+          if (trackData.id) {
+              return prev.map(t => t.id === trackData.id ? savedTrack : t);
+          }
+          return [...prev, savedTrack];
+      });
 
-      // 3. Update local state
-      setTracks(prev => [...prev, createdTrack]);
-      setShowStudio(false); // Close studio after success
-      console.log("Publishing complete!");
+      setShowStudio(false);
     } catch (error) {
       console.error('Error publishing track:', error);
-      alert('Failed to publish track');
+      alert('Failed to save track');
     }
   };
 
@@ -2537,7 +2783,23 @@ export default function MusicApp() {
                               const lyric = activeTrack.lyrics[currentLyricIndex];
                               if (!lyric) return '...';
                               if (typeof lyric === 'string') return lyric;
-                              return lyric.translation || lyric.original || '...';
+
+                              let text = lyric.translation || lyric.original || '...';
+                              // @ts-ignore
+                              if (lyric.isAppend) {
+                                  let prevIdx = currentLyricIndex - 1;
+                                  // @ts-ignore
+                                  while (prevIdx >= 0 && activeTrack.lyrics[prevIdx + 1].isAppend) {
+                                      const prev = activeTrack.lyrics[prevIdx];
+                                      if (typeof prev !== 'string') {
+                                          text = (prev.translation || prev.original) + " " + text;
+                                          // @ts-ignore
+                                          if (!prev.isAppend) break;
+                                      }
+                                      prevIdx--;
+                                  }
+                              }
+                              return text;
                             })()}
                           </h2>
                        </div>
@@ -2627,6 +2889,19 @@ export default function MusicApp() {
           </div>
 
         </div>
+      )}
+
+      {/* --- PLACEBO VISUALIZER --- */}
+      {activeTrack && (activeTrack.title === "Without You I'm Nothing" || activeTrack.title.toLowerCase().includes('without you')) && (
+        <PlaceboVisualizer 
+          activeTrack={activeTrack} 
+          currentTime={currentTime} 
+          isPlaying={isPlaying} 
+          duration={duration}
+          onTogglePlay={toggleMainPlay}
+          onSeek={(time) => { if(mainAudioRef.current) mainAudioRef.current.currentTime = time; }}
+          onClose={handleClosePlayer} 
+        />
       )}
 
       {/* --- PIN MODAL --- */}

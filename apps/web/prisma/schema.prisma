@@ -34,6 +34,7 @@ model Lyric {
   translation String  // Translation text
   time        Float   // Timestamp in seconds
   isSynced    Boolean @default(false)
+  isAppend    Boolean @default(false) // Whether to append this line to the previous one
   order       Int     // Order of lyrics in track
 
   track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)

@@ -46,7 +46,8 @@ export async function GET(
         original: lyric.original,
         translation: lyric.translation,
         time: lyric.time,
-        isSynced: lyric.isSynced
+        isSynced: lyric.isSynced,
+        isAppend: lyric.isAppend
       })),
       strobeMarkers: track.strobeMarkers.map(marker => ({
         id: marker.id,
@@ -71,21 +72,59 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { artist, title, category, coverUrl } = await request.json();
+    const { artist, title, category, coverUrl, lyrics, strobeMarkers } = await request.json();
 
-    const track = await prisma.track.update({
-      where: { id },
-      data: {
-        artist,
-        title,
-        ...(category && { category }),
-        ...(coverUrl !== undefined && { coverUrl })
-      },
-      include: {
-        lyrics: { orderBy: { order: 'asc' } },
-        strobeMarkers: { orderBy: { time: 'asc' } }
-      }
+    // Transaction to update track and replace lyrics/markers
+    const track = await prisma.$transaction(async (tx) => {
+        // 1. Update core track details
+        await tx.track.update({
+            where: { id },
+            data: {
+                artist,
+                title,
+                ...(category && { category }),
+                ...(coverUrl !== undefined && { coverUrl })
+            }
+        });
+
+        // 2. If lyrics provided, replace them
+        if (lyrics) {
+            await tx.lyric.deleteMany({ where: { trackId: id } });
+            await tx.lyric.createMany({
+                data: lyrics.map((l: any, index: number) => ({
+                    trackId: id,
+                    original: l.original || '',
+                    translation: l.translation || '',
+                    time: l.time || 0,
+                    isSynced: l.isSynced || false,
+                    isAppend: l.isAppend || false,
+                    order: index
+                }))
+            });
+        }
+
+        // 3. If strobeMarkers provided, replace them (optional, usually handled by separate endpoint but good to have sync)
+        // Actually strobeMarkers has its own endpoint logic usually, but let's allow full save here.
+        if (strobeMarkers) {
+            await tx.strobeMarker.deleteMany({ where: { trackId: id } });
+            await tx.strobeMarker.createMany({
+                data: strobeMarkers.map((m: any) => ({
+                    trackId: id,
+                    time: m.time || 0
+                }))
+            });
+        }
+
+        return tx.track.findUnique({
+            where: { id },
+            include: {
+                lyrics: { orderBy: { order: 'asc' } },
+                strobeMarkers: { orderBy: { time: 'asc' } }
+            }
+        });
     });
+
+    if (!track) throw new Error("Track not found after update");
 
     const formattedTrack = {
       id: track.id,
@@ -100,7 +139,8 @@ export async function PUT(
         original: lyric.original,
         translation: lyric.translation,
         time: lyric.time,
-        isSynced: lyric.isSynced
+        isSynced: lyric.isSynced,
+        isAppend: lyric.isAppend
       })),
       strobeMarkers: track.strobeMarkers.map(marker => ({
         id: marker.id,
@@ -112,7 +152,11 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating track:', error);
     return NextResponse.json(
-      { error: 'Failed to update track' },
+      { 
+        error: 'Failed to update track', 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined 
+      },
       { status: 500 }
     );
   }

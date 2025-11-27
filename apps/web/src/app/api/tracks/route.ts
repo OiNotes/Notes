@@ -39,7 +39,8 @@ export async function GET() {
         original: lyric.original,
         translation: lyric.translation,
         time: lyric.time,
-        isSynced: lyric.isSynced
+        isSynced: lyric.isSynced,
+        isAppend: lyric.isAppend
       })),
       strobeMarkers: track.strobeMarkers.map(marker => ({
         id: marker.id,
@@ -59,6 +60,7 @@ export async function GET() {
 
 // POST /api/tracks - создать новый трек
 export async function POST(request: NextRequest) {
+  console.log('[API] POST /api/tracks request received'); // Trigger rebuild
   try {
     const body = await request.json();
     const { artist, title, color, audioPath, coverUrl, lyrics, strobeMarkers, category } = body;
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
             translation: lyric.translation || '',
             time: lyric.time || 0,
             isSynced: lyric.isSynced || false,
+            isAppend: lyric.isAppend || false,
             order: index
           })) || []
         },
@@ -123,7 +126,8 @@ export async function POST(request: NextRequest) {
         original: lyric.original,
         translation: lyric.translation,
         time: lyric.time,
-        isSynced: lyric.isSynced
+        isSynced: lyric.isSynced,
+        isAppend: lyric.isAppend
       })),
       strobeMarkers: track.strobeMarkers.map(marker => ({
         id: marker.id,
@@ -135,7 +139,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating track:', error);
     return NextResponse.json(
-      { error: 'Failed to create track' },
+      { 
+        error: 'Failed to create track',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
