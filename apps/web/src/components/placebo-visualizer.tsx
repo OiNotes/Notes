@@ -739,7 +739,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   const flashRef = useRef(0);
   const [showClock, setShowClock] = useState(false);
   const [showPills, setShowPills] = useState(false);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(undefined);
   const prevLyricRef = useRef<string>('');
 
   // Effect references
@@ -782,13 +782,10 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       // @ts-ignore
       if (current.isAppend) {
          let prevIdx = activeIndex - 1;
-         // @ts-ignore
-         while (prevIdx >= 0 && lyrics[prevIdx + 1].isAppend) {
-             // @ts-ignore
-             const prev = lyrics[prevIdx];
+         while (prevIdx >= 0 && (lyrics[prevIdx + 1] as any).isAppend) {
+             const prev = lyrics[prevIdx] as any;
              en = (prev.original || '') + " " + en;
              ru = (prev.translation || '') + " " + ru;
-             // @ts-ignore
              if (!prev.isAppend) break;
              prevIdx--;
          }
@@ -866,7 +863,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       stateRef.current = { showClock, showPills, lyricLine };
   }, [showClock, showPills, lyricLine]);
 
-  const animateRef = useRef<() => void>();
+  const animateRef = useRef<() => void>(undefined);
   animateRef.current = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -1027,10 +1024,10 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
        </div>
 
        {/* PLAYER CONTROLS LAYER (Styled) */}
-       <div className="absolute bottom-0 left-0 right-0 z-50 p-8 md:p-12 flex flex-col gap-6 bg-gradient-to-t from-black via-black/80 to-transparent">
+       <div className="absolute bottom-0 left-0 right-0 z-50 p-8 md:p-12 flex-col gap-6 bg-gradient-to-t from-black via-black/80 to-transparent hidden md:flex">
           
-          {/* Progress Bar */}
-          <div className="w-full group cursor-pointer" 
+          {/* Progress Bar - Hidden on PC as requested, hidden on mobile via parent */}
+          <div className="w-full group cursor-pointer md:hidden" 
                onClick={(e) => {
                  const rect = e.currentTarget.getBoundingClientRect();
                  const percent = (e.clientX - rect.left) / rect.width;

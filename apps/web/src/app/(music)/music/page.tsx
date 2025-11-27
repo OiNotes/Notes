@@ -40,11 +40,10 @@ type Track = {
     isAppend?: boolean;
   }[];
   strobeMarkers?: { id: number; time: number }[];
-  category?: 'yours' | 'all';
+  category?: 'yours' | 'all' | 'visual';
 };
 
-// --- INITIAL DATA ---
-const INITIAL_TRACKS: Track[] = [];
+// No initial tracks - all data loaded from database
 
 // --- BENTO ITEM COMPONENT ---
 const BentoItem = ({ 
@@ -126,12 +125,22 @@ const Dock = ({
   isAdmin 
 }: { 
   activeCategory: string; 
-  setActiveCategory: (cat: 'all' | 'yours') => void;
+  setActiveCategory: (cat: any) => void;
   onStudioOpen: () => void;
   isAdmin: boolean;
 }) => (
   <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 pointer-events-auto pb-[env(safe-area-inset-bottom)] mb-4">
     <div className="flex items-center gap-1 p-1.5 rounded-full bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 shadow-2xl">
+      <button 
+        onClick={() => setActiveCategory('visual')}
+        className={`px-4 py-2 rounded-full transition-all text-sm font-medium ${
+          activeCategory === 'visual' 
+            ? 'bg-white/20 text-white' 
+            : 'text-white/60 hover:text-white hover:bg-white/10'
+        }`}
+      >
+        Визуализация
+      </button>
       <button 
         onClick={() => setActiveCategory('all')}
         className={`px-4 py-2 rounded-full transition-all text-sm font-medium ${
@@ -336,7 +345,7 @@ const Button = ({ onClick, children, variant = 'primary', className = '', disabl
 };
 
 // --- CATEGORY TABS ---
-type CategoryFilter = 'all' | 'yours';
+type CategoryFilter = 'all' | 'yours' | 'visual';
 
 const CategoryTabs = ({
   active,
@@ -346,17 +355,20 @@ const CategoryTabs = ({
   onChange: (cat: CategoryFilter) => void;
 }) => {
   const tabs: { id: CategoryFilter; label: string }[] = [
+    { id: 'visual', label: 'Визуализация' },
     { id: 'all', label: 'Ваши песни' },
     { id: 'yours', label: 'Мои песни' }
   ];
 
   return (
-    <div className="w-full max-w-[340px] mx-auto px-4 sm:px-0">
+    <div className="w-full max-w-[480px] mx-auto px-4 sm:px-0">
       <div className="relative flex items-center bg-white/10 p-1 rounded-xl h-[36px]">
         {/* Sliding Indicator */}
         <div
           className={`absolute top-1 bottom-1 rounded-lg bg-white/20 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-            ${active === 'all' ? 'left-1 w-[calc(50%-4px)]' : 'left-[50%] w-[calc(50%-4px)]'}
+            ${active === 'visual' ? 'left-1 w-[calc(33.33%-4px)]' : 
+              active === 'all' ? 'left-[33.33%] w-[calc(33.33%-4px)]' : 
+              'left-[66.66%] w-[calc(33.33%-4px)]'}
           `}
         />
         {tabs.map(tab => (
@@ -489,7 +501,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     color: string;
     audioFile: File | null;
     lyrics: any[];
-    category: 'yours' | 'all';
+    category: 'yours' | 'all' | 'visual';
     coverFile?: File | null;
     id?: string;
   }) => Promise<void>,
@@ -519,7 +531,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   const [strobeMode, setStrobeMode] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [editingStrobeTrack, setEditingStrobeTrack] = useState<Track | null>(null);
-  const [trackCategory, setTrackCategory] = useState<'yours' | 'all'>('yours');
+  const [trackCategory, setTrackCategory] = useState<'yours' | 'all' | 'visual'>('yours');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
 
@@ -1862,7 +1874,7 @@ const formatTime = (seconds: number) => {
 };
 
 export default function MusicApp() {
-  const [tracks, setTracks] = useState<Track[]>(INITIAL_TRACKS);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [isTonearmMoving, setIsTonearmMoving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1874,7 +1886,7 @@ export default function MusicApp() {
   const [isScratching, setIsScratching] = useState(false);
   const [isClimax, setIsClimax] = useState(false); // New State for "Drrr-drrr" ending
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('yours');
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('visual');
   
   // --- AUDIO ANALYSIS STATE ---
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1916,10 +1928,14 @@ export default function MusicApp() {
   // "Ваши песни" (all) = category === 'yours' (от разработчика)
   // "Мои песни" (yours) = category !== 'yours' (пользовательские)
   const filteredTracks = useMemo(() => {
+    if (activeCategory === 'visual') {
+      return tracks.filter(t => t.category === 'visual');
+    }
     if (activeCategory === 'all') {
       return tracks.filter(t => t.category === 'yours');
     }
-    return tracks.filter(t => t.category !== 'yours');
+    // 'yours' usually means user uploads, exclude visual and official 'yours' if that was the logic
+    return tracks.filter(t => t.category !== 'yours' && t.category !== 'visual');
   }, [tracks, activeCategory]);
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -2126,7 +2142,7 @@ export default function MusicApp() {
     color: string;
     audioFile: File | null;
     lyrics: any[];
-    category: 'yours' | 'all';
+    category: 'yours' | 'all' | 'visual';
     coverFile?: File | null;
     id?: string; // Added optional ID
   }) => {
