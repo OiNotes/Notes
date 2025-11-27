@@ -117,12 +117,90 @@ const BentoItem = ({
   );
 };
 
+// --- VISUALIZATION POSTER COMPONENT ---
+const VisualizationPoster = ({
+  track,
+  onClick,
+  isActive,
+  isPlaying
+}: {
+  track: Track;
+  onClick: () => void;
+  isActive?: boolean;
+  isPlaying?: boolean;
+}) => {
+  return (
+    <div
+      onClick={onClick}
+      className="group relative w-full aspect-[3/4] sm:aspect-[2/3] md:aspect-video max-h-[75vh] overflow-hidden rounded-3xl cursor-pointer transition-all duration-700 hover:scale-[1.01] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]"
+    >
+      {/* Full Cover Background */}
+      <div className="absolute inset-0">
+        {track.coverUrl ? (
+          <img
+            src={track.coverUrl}
+            alt={`${track.title} — афиша`}
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-purple-900 via-black to-red-900" />
+        )}
+        {/* Cinematic Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
+      </div>
+
+      {/* Play Button - Center */}
+      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${isActive && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
+          {isActive && isPlaying ? (
+            <div className="flex gap-1 items-end h-8">
+              <div className="w-1.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite] h-full rounded-full" />
+              <div className="w-1.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.2s] h-2/3 rounded-full" />
+              <div className="w-1.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.4s] h-full rounded-full" />
+            </div>
+          ) : (
+            <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {/* Track Info - Bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-white/50 text-xs sm:text-sm uppercase tracking-widest mb-2">Визуализация</p>
+            <h2 className={`text-white text-2xl sm:text-4xl md:text-5xl font-bold leading-tight mb-2 transition-colors ${isActive ? 'text-amber-400' : ''}`}>
+              {track.title}
+            </h2>
+            <p className="text-white/70 text-base sm:text-xl">{track.artist}</p>
+          </div>
+          {isActive && isPlaying && (
+            <div className="hidden sm:flex items-center gap-2 text-white/50 text-sm">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              Воспроизводится
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Decorative Corner Accents */}
+      <div className="absolute top-4 left-4 w-12 h-12 border-l-2 border-t-2 border-white/20 rounded-tl-lg" />
+      <div className="absolute top-4 right-4 w-12 h-12 border-r-2 border-t-2 border-white/20 rounded-tr-lg" />
+      <div className="absolute bottom-4 left-4 w-12 h-12 border-l-2 border-b-2 border-white/20 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute bottom-4 right-4 w-12 h-12 border-r-2 border-b-2 border-white/20 rounded-br-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+};
+
 // --- DOCK COMPONENT ---
-const Dock = ({ 
-  activeCategory, 
-  setActiveCategory, 
+const Dock = ({
+  activeCategory,
+  setActiveCategory,
   onStudioOpen,
-  isAdmin 
+  isAdmin
 }: { 
   activeCategory: string; 
   setActiveCategory: (cat: any) => void;
@@ -360,25 +438,50 @@ const CategoryTabs = ({
     { id: 'yours', label: 'Мои песни' }
   ];
 
+  const getIndicatorStyle = () => {
+    const positions = { visual: 0, all: 33.33, yours: 66.66 };
+    return {
+      transform: `translateX(${positions[active]}%)`,
+      width: 'calc(33.33% - 4px)'
+    };
+  };
+
   return (
     <div className="w-full max-w-[480px] mx-auto px-4 sm:px-0">
-      <div className="relative flex items-center bg-white/10 p-1 rounded-xl h-[36px]">
-        {/* Sliding Indicator */}
+      {/* Apple Glass Container */}
+      <div className="relative flex items-center p-1.5 rounded-2xl h-[44px]
+        bg-white/[0.08] backdrop-blur-xl
+        border border-white/[0.12]
+        shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)]
+        overflow-hidden"
+      >
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
+
+        {/* Sliding Glass Indicator */}
         <div
-          className={`absolute top-1 bottom-1 rounded-lg bg-white/20 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-            ${active === 'visual' ? 'left-1 w-[calc(33.33%-4px)]' : 
-              active === 'all' ? 'left-[33.33%] w-[calc(33.33%-4px)]' : 
-              'left-[66.66%] w-[calc(33.33%-4px)]'}
-          `}
+          className="absolute top-1.5 bottom-1.5 left-1.5 rounded-xl
+            bg-white/[0.15] backdrop-blur-sm
+            border border-white/[0.15]
+            shadow-[0_2px_8px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.2)]
+            transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+          style={getIndicatorStyle()}
         />
+
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`flex-1 relative z-10 text-[13px] font-medium text-center transition-all duration-200
-              ${active === tab.id ? 'text-white' : 'text-white/60 hover:text-white/80'}`}
+            className={`flex-1 relative z-10 text-[13px] font-semibold text-center py-2
+              transition-all duration-300 ease-out
+              ${active === tab.id
+                ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]'
+                : 'text-white/50 hover:text-white/70 active:scale-95'}`}
           >
-            {tab.label}
+            <span className={`transition-transform duration-300 inline-block
+              ${active === tab.id ? 'scale-105' : 'scale-100'}`}>
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>
@@ -1879,6 +1982,7 @@ export default function MusicApp() {
   const [isTonearmMoving, setIsTonearmMoving] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isLyricAnimating, setIsLyricAnimating] = useState(false);
@@ -1887,6 +1991,10 @@ export default function MusicApp() {
   const [isClimax, setIsClimax] = useState(false); // New State for "Drrr-drrr" ending
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('visual');
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 768px)').matches;
+  });
   
   // --- AUDIO ANALYSIS STATE ---
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -2324,6 +2432,12 @@ export default function MusicApp() {
       try {
         await mainAudioRef.current.play();
         setIsPlaying(true);
+
+        // Auto-hide full player on mobile or when in visualizer category after play starts
+        if (isMobileViewport || activeCategory === 'visual') {
+          setShowFullPlayer(false);
+          setImmersiveMode(false);
+        }
       } catch (e) {
         console.error("Playback failed:", e);
         setIsPlaying(false);
@@ -2342,6 +2456,21 @@ export default function MusicApp() {
     }
     return () => clearTimeout(timer);
   }, [isPlaying]);
+
+  // Ensure auto-hide if playback state flips from elsewhere
+  useEffect(() => {
+    if (isPlaying && (isMobileViewport || activeCategory === 'visual')) {
+      setShowFullPlayer(false);
+      setImmersiveMode(false);
+    }
+  }, [isPlaying, activeCategory, isMobileViewport]);
+
+  useEffect(() => {
+    if (isMobileViewport && activeCategory === 'visual') {
+      setShowFullPlayer(false);
+      setImmersiveMode(false);
+    }
+  }, [activeCategory, isMobileViewport]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -2483,11 +2612,22 @@ export default function MusicApp() {
     // Logic moved to interval for unified update
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const listener = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    setIsMobileViewport(mq.matches);
+    mq.addEventListener('change', listener);
+    return () => mq.removeEventListener('change', listener);
+  }, []);
+
   // Force reload audio when track changes - REMOVED (React key prop handles this)
   
   const handleSelectTrack = (track: Track) => {
     console.log('[MusicApp] Track Selected:', track.title);
     setActiveTrack(track);
+    const hideOnMobileVisualizer = isMobileViewport && activeCategory === 'visual';
+    setShowFullPlayer(!hideOnMobileVisualizer);
     setIsPlaying(false);
     setIsTonearmMoving(false);
     setImmersiveMode(false);
@@ -2498,6 +2638,7 @@ export default function MusicApp() {
   const handleClosePlayer = () => {
     setActiveTrack(null); // Close player by clearing active track
     setImmersiveMode(false);
+    setShowFullPlayer(false);
     setIsPlaying(false);
     setIsTonearmMoving(false);
     setCurrentLyricIndex(0);
@@ -2678,20 +2819,36 @@ export default function MusicApp() {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 auto-rows-[minmax(140px,1fr)] sm:auto-rows-[minmax(170px,1fr)] lg:auto-rows-[minmax(200px,1fr)]">
-            {filteredTracks.map((track, i) => (
-              <BentoItem
-                key={track.id}
-                track={track}
-                size={i === 0 ? 'large' : i < 3 ? 'medium' : 'small'}
-                onClick={() => handleSelectTrack(track)}
-                isActive={activeTrack?.id === track.id}
-                isPlaying={isPlaying}
-                getColorTheme={getColorTheme}
-              />
-            ))}
-          </div>
-          
+          {/* Visual Category - Show Poster */}
+          {activeCategory === 'visual' && filteredTracks.length > 0 ? (
+            <div className="flex flex-col gap-6">
+              {filteredTracks.map((track) => (
+                <VisualizationPoster
+                  key={track.id}
+                  track={track}
+                  onClick={() => handleSelectTrack(track)}
+                  isActive={activeTrack?.id === track.id}
+                  isPlaying={isPlaying}
+                />
+              ))}
+            </div>
+          ) : (
+            /* Other Categories - Show Bento Grid */
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 auto-rows-[minmax(180px,1fr)] sm:auto-rows-[minmax(200px,1fr)] lg:auto-rows-[minmax(220px,1fr)]">
+              {filteredTracks.map((track, i) => (
+                <BentoItem
+                  key={track.id}
+                  track={track}
+                  size={i === 0 ? 'large' : i < 3 ? 'medium' : 'small'}
+                  onClick={() => handleSelectTrack(track)}
+                  isActive={activeTrack?.id === track.id}
+                  isPlaying={isPlaying}
+                  getColorTheme={getColorTheme}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Empty State */}
           {filteredTracks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-white/30">
@@ -2712,18 +2869,18 @@ export default function MusicApp() {
       />
       
       {/* MINI PLAYER */}
-      {activeTrack && !immersiveMode && (
+      {activeTrack && !immersiveMode && !(isMobileViewport && activeCategory === 'visual') && (
         <MiniPlayer 
           track={activeTrack} 
           isPlaying={isPlaying} 
           onToggle={toggleMainPlay} 
-          onOpen={() => setImmersiveMode(true)}
+          onOpen={() => { setShowFullPlayer(true); setImmersiveMode(true); }}
           getColorTheme={getColorTheme}
         />
       )}
 
       {/* --- ПРОИГРЫВАТЕЛЬ (FULL SCREEN PLAYER) --- */}
-      {activeTrack && (
+      {activeTrack && showFullPlayer && !(isMobileViewport && activeCategory === 'visual') && (
         <div className="fixed inset-0 z-50 bg-[#0a0a0a] overflow-hidden safe-area-bottom flex items-stretch justify-center">
           {/* Strobe Flash Overlay */}
           {playerShowFlash && (

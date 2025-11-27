@@ -739,6 +739,8 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   const flashRef = useRef(0);
   const [showClock, setShowClock] = useState(false);
   const [showPills, setShowPills] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const hideControlsTimer = useRef<NodeJS.Timeout>(undefined);
   const requestRef = useRef<number>(undefined);
   const prevLyricRef = useRef<string>('');
 
@@ -751,6 +753,26 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   const tearsRef = useRef<ScreenTear[]>([]);
   const stitchesRef = useRef<Stitch[]>([]);
   const inkSplatterRef = useRef<InkSplatter>(new InkSplatter());
+
+  // --- AUTO-HIDE CONTROLS ---
+  useEffect(() => {
+    if (isPlaying) {
+      hideControlsTimer.current = setTimeout(() => setShowControls(false), 3000);
+    } else {
+      setShowControls(true);
+    }
+    return () => {
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    };
+  }, [isPlaying]);
+
+  const handleScreenTap = () => {
+    setShowControls(true);
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    if (isPlaying) {
+      hideControlsTimer.current = setTimeout(() => setShowControls(false), 3000);
+    }
+  };
 
   // --- LYRIC SYNC ENGINE ---
   useEffect(() => {
@@ -999,7 +1021,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   }, []); // Run once on mount
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#050505] overflow-hidden text-[#ddd] select-none">
+    <div className="fixed inset-0 z-[60] bg-[#050505] overflow-hidden text-[#ddd] select-none" onClick={handleScreenTap}>
        <style jsx>{`
         @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Bad+Script&display=swap');
         .font-elite { font-family: 'Special Elite', monospace; }
@@ -1024,7 +1046,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
        </div>
 
        {/* PLAYER CONTROLS LAYER (Styled) */}
-       <div className="absolute bottom-0 left-0 right-0 z-50 p-8 md:p-12 flex-col gap-6 bg-gradient-to-t from-black via-black/80 to-transparent hidden md:flex">
+       <div className={`absolute bottom-0 left-0 right-0 z-50 p-4 sm:p-8 md:p-12 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           
           {/* Progress Bar - Hidden on PC as requested, hidden on mobile via parent */}
           <div className="w-full group cursor-pointer md:hidden" 
@@ -1069,9 +1091,9 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
        </div>
 
        {/* Close Button */}
-       <button 
-         onClick={onClose} 
-         className="absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white border border-transparent hover:border-white/20 rounded-full transition-all cursor-pointer mix-blend-difference"
+       <button
+         onClick={onClose}
+         className={`absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white border border-transparent hover:border-white/20 rounded-full transition-all cursor-pointer mix-blend-difference ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
        >
          <X size={32} />
        </button>
