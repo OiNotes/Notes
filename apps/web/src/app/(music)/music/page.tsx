@@ -2312,7 +2312,7 @@ export default function MusicApp() {
 
     // Start sequence with tonearm pause
     setIsTonearmMoving(true);
-    setImmersiveMode(true);
+    // immersiveMode will be set after play starts (in useEffect)
     setCurrentLyricIndex(0);
     if (mainAudioRef.current) {
       mainAudioRef.current.currentTime = 0;
