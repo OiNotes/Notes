@@ -38,6 +38,7 @@ export async function GET(
       artist: track.artist,
       title: track.title,
       color: track.color,
+      coverUrl: track.coverUrl,
       audioSrc: track.audioPath,
       category: track.category,
       lyrics: track.lyrics.map(lyric => ({
@@ -70,14 +71,15 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { artist, title, category } = await request.json();
+    const { artist, title, category, coverUrl } = await request.json();
 
     const track = await prisma.track.update({
       where: { id },
       data: {
         artist,
         title,
-        ...(category && { category })
+        ...(category && { category }),
+        ...(coverUrl !== undefined && { coverUrl })
       },
       include: {
         lyrics: { orderBy: { order: 'asc' } },
@@ -90,6 +92,7 @@ export async function PUT(
       artist: track.artist,
       title: track.title,
       color: track.color,
+      coverUrl: track.coverUrl,
       audioSrc: track.audioPath,
       category: track.category,
       lyrics: track.lyrics.map(lyric => ({

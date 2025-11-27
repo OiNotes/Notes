@@ -843,12 +843,55 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                     key={track.id}
                     className="bg-[#111] border border-white/10 rounded-xl p-4 flex items-center gap-4 hover:border-white/20 transition-colors group"
                   >
-                    {/* Vinyl Preview */}
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-lg"
-                      style={{ background: getColorTheme(track.color).gradient }}
-                    >
-                      <div className="w-4 h-4 rounded-full bg-black/80" />
+                    {/* Cover/Vinyl Preview with Upload */}
+                    <div className="relative group/cover shrink-0">
+                      {track.coverUrl ? (
+                        <img
+                          src={track.coverUrl}
+                          alt={track.title}
+                          className="w-14 h-14 rounded-xl object-cover shadow-lg"
+                        />
+                      ) : (
+                        <div
+                          className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg"
+                          style={{ background: getColorTheme(track.color).gradient }}
+                        >
+                          <div className="w-4 h-4 rounded-full bg-black/80" />
+                        </div>
+                      )}
+                      {/* Cover Upload Overlay */}
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl opacity-0 group-hover/cover:opacity-100 cursor-pointer transition-opacity">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              formData.append('upload_preset', 'Oi notes');
+                              const response = await fetch(
+                                'https://api.cloudinary.com/v1_1/djtbtkddr/image/upload',
+                                { method: 'POST', body: formData }
+                              );
+                              if (response.ok) {
+                                const data = await response.json();
+                                if (onEditTrack) {
+                                  await onEditTrack({ ...track, coverUrl: data.secure_url });
+                                }
+                              }
+                            } catch (error) {
+                              console.error('Cover upload error:', error);
+                            }
+                          }}
+                        />
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </label>
                     </div>
 
                     {/* Track Info */}
@@ -2360,7 +2403,10 @@ export default function MusicApp() {
       {/* MINIMAL HEADER */}
       <header className="flex-shrink-0 z-40 w-full pt-12 pb-4 px-6 relative">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-[32px] font-bold text-white tracking-tight leading-none font-lyrics">Коллекция</h1>
+          <h1
+            onClick={handleHeaderClick}
+            className="text-[32px] font-bold text-white tracking-tight leading-none font-lyrics cursor-pointer select-none"
+          >Коллекция</h1>
         </div>
       </header>
 
@@ -2599,11 +2645,11 @@ export default function MusicApp() {
               const response = await fetch(`/api/tracks/${track.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ artist: track.artist, title: track.title })
+                body: JSON.stringify({ artist: track.artist, title: track.title, coverUrl: track.coverUrl })
               });
               if (!response.ok) throw new Error('Failed to update');
               const updatedTrack = await response.json();
-              setTracks(prev => prev.map(t => t.id === updatedTrack.id ? { ...t, artist: updatedTrack.artist, title: updatedTrack.title } : t));
+              setTracks(prev => prev.map(t => t.id === updatedTrack.id ? { ...t, artist: updatedTrack.artist, title: updatedTrack.title, coverUrl: updatedTrack.coverUrl } : t));
             } catch (error) {
               console.error('Error updating track:', error);
               alert('Ошибка при обновлении');
