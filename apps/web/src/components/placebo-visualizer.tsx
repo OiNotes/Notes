@@ -80,8 +80,10 @@ class Pill {
   size: number = 0;
   angle: number = 0;
   rotationSpeed: number = 0;
-  speedY: number = 0;
+  baseSpeedY: number = 0;
   opacity: number = 0;
+  type: 'capsule' | 'round' = 'capsule';
+  color: string = '255, 255, 255';
   canvasWidth: number = 0;
   canvasHeight: number = 0;
 
@@ -93,40 +95,67 @@ class Pill {
 
   reset() {
     this.x = Math.random() * this.canvasWidth;
-    this.y = Math.random() * -this.canvasHeight;
-    this.size = Math.random() * 10 + 5;
+    this.y = Math.random() * -this.canvasHeight - 50; // Start well above
+    this.size = Math.random() * 15 + 8;
     this.angle = Math.random() * Math.PI * 2;
     this.rotationSpeed = (Math.random() - 0.5) * 0.1;
-    this.speedY = Math.random() * 3 + 1;
-    this.opacity = Math.random() * 0.6 + 0.2;
+    this.baseSpeedY = Math.random() * 1 + 0.5; // Slow base speed
+    this.opacity = Math.random() * 0.5 + 0.3;
+    this.type = Math.random() > 0.6 ? 'round' : 'capsule';
+    
+    // Random pill colors (white, pale blue, pale red)
+    const colors = ['255, 255, 255', '200, 220, 255', '255, 200, 200'];
+    this.color = colors[Math.floor(Math.random() * colors.length)];
   }
 
-  update() {
-    this.y += this.speedY;
-    this.angle += this.rotationSpeed;
-    if (this.y > this.canvasHeight + this.size) this.reset();
+  update(speedMultiplier: number) {
+    this.y += this.baseSpeedY * speedMultiplier;
+    this.angle += this.rotationSpeed * Math.sqrt(speedMultiplier); // Spin faster when moving fast
+    
+    if (this.y > this.canvasHeight + this.size) {
+        this.reset();
+    }
   }
 
   draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.beginPath();
-    ctx.moveTo(-this.size, -this.size/2);
-    ctx.lineTo(this.size, -this.size/2);
-    ctx.arc(this.size, 0, this.size/2, -Math.PI/2, Math.PI/2);
-    ctx.lineTo(-this.size, this.size/2);
-    ctx.arc(-this.size, 0, this.size/2, Math.PI/2, -Math.PI/2);
-    ctx.closePath();
-
-    ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+    
+    ctx.strokeStyle = `rgba(${this.color}, ${this.opacity})`;
     ctx.lineWidth = 1.5;
-    ctx.stroke();
 
-    ctx.beginPath();
-    ctx.moveTo(0, -this.size/2);
-    ctx.lineTo(0, this.size/2);
-    ctx.stroke();
+    if (this.type === 'capsule') {
+        ctx.beginPath();
+        ctx.moveTo(-this.size, -this.size/2);
+        ctx.lineTo(this.size, -this.size/2);
+        ctx.arc(this.size, 0, this.size/2, -Math.PI/2, Math.PI/2);
+        ctx.lineTo(-this.size, this.size/2);
+        ctx.arc(-this.size, 0, this.size/2, Math.PI/2, -Math.PI/2);
+        ctx.closePath();
+        ctx.stroke();
+        
+        // Line across middle
+        ctx.beginPath();
+        ctx.moveTo(0, -this.size/2);
+        ctx.lineTo(0, this.size/2);
+        ctx.strokeStyle = `rgba(${this.color}, ${this.opacity * 0.5})`;
+        ctx.stroke();
+    } else {
+        // Round pill
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size * 0.8, 0, Math.PI*2);
+        ctx.stroke();
+        
+        // Cross imprint
+        ctx.beginPath();
+        ctx.moveTo(-this.size*0.4, 0);
+        ctx.lineTo(this.size*0.4, 0);
+        ctx.moveTo(0, -this.size*0.4);
+        ctx.lineTo(0, this.size*0.4);
+        ctx.stroke();
+    }
+
     ctx.restore();
   }
 }
@@ -388,6 +417,78 @@ class InkSplatter {
   }
 }
 
+// --- NERVOUS SCRIBBLE (Specific Trigger Only) ---
+class NervousScribble {
+  x: number = 0;
+  y: number = 0;
+  type: number = 0; 
+  life: number = 0;
+  points: {x: number, y: number}[] = [];
+  width: number = 0;
+  height: number = 0;
+  
+  constructor(w: number, h: number) {
+      this.width = w;
+      this.height = h;
+      this.reset();
+  }
+  
+  reset() {
+      this.x = Math.random() * this.width;
+      this.y = Math.random() * this.height;
+      this.type = Math.floor(Math.random() * 3);
+      this.life = Math.random() * 5 + 2; 
+      
+      this.points = [];
+      let cx = 0, cy = 0;
+      for(let i=0; i<8; i++) {
+          cx += (Math.random() - 0.5) * 30;
+          cy += (Math.random() - 0.5) * 30;
+          this.points.push({x: cx, y: cy});
+      }
+  }
+  
+  spawn() {
+      this.life = Math.random() * 10 + 5;
+      this.x = Math.random() * this.width;
+      this.y = Math.random() * this.height;
+  }
+
+  update() {
+      this.life--;
+  }
+  
+  draw(ctx: CanvasRenderingContext2D) {
+      if (this.life <= 0) return;
+      
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      
+      if (this.type === 0) { // Frantic Circle
+          ctx.beginPath();
+          for(let i=0; i<3; i++) {
+              ctx.ellipse(0, 0, 10 + Math.random()*5, 10 + Math.random()*5, Math.random(), 0, Math.PI*2);
+          }
+          ctx.stroke();
+      } else if (this.type === 1) { // Violent Cross
+          ctx.beginPath();
+          const s = 15;
+          ctx.moveTo(-s, -s); ctx.lineTo(s, s);
+          ctx.moveTo(s, -s); ctx.lineTo(-s, s);
+          ctx.stroke();
+      } else { // Text Scribble
+          ctx.beginPath();
+          ctx.moveTo(0,0);
+          for(let p of this.points) ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+      }
+      ctx.restore();
+  }
+}
+
+
 class PendulumClock {
   centerX: number = 0;
   centerY: number = 0;
@@ -635,7 +736,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
     isStitch?: boolean;
     isInk?: boolean;
   }>({ en: '', ru: '' });
-  const [flashIntensity, setFlashIntensity] = useState(0);
+  const flashRef = useRef(0);
   const [showClock, setShowClock] = useState(false);
   const [showPills, setShowPills] = useState(false);
   const requestRef = useRef<number>();
@@ -645,6 +746,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   const scratchesRef = useRef<Scratch[]>([]);
   const pillsRef = useRef<Pill[]>([]);
   const clockRef = useRef<PendulumClock>(new PendulumClock());
+  const scribblesRef = useRef<NervousScribble[]>([]); // NEW
   // NEW effect refs
   const tearsRef = useRef<ScreenTear[]>([]);
   const stitchesRef = useRef<Stitch[]>([]);
@@ -715,27 +817,28 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
         prevLyricRef.current = en;
         const canvas = canvasRef.current;
 
-        // Spawn TEAR effects (screen rips)
-        if (isTear && canvas) {
-          // Add 1-2 screen tears
-          const tearCount = Math.floor(Math.random() * 2) + 1;
-          for (let i = 0; i < tearCount; i++) {
-            if (tearsRef.current.length < 3) { // Limit
-              tearsRef.current.push(new ScreenTear(canvas.width, canvas.height));
-            }
-          }
-          setFlashIntensity(0.5);
+        // Spawn Scribbles (Mental breakdown - ONLY on specific nervous words)
+        if (scribblesRef.current && (isExplosion || isInk)) {
+           const count = Math.floor(Math.random() * 3) + 1;
+           for(let i=0; i<count; i++) {
+               scribblesRef.current[Math.floor(Math.random() * scribblesRef.current.length)].spawn();
+           }
         }
 
-        // Spawn STITCH effects (healing/sewing)
+        // Spawn TEAR effects (screen rips)
+        if (isTear && canvas) {
+          const tearCount = Math.floor(Math.random() * 2) + 1;
+          for (let i = 0; i < tearCount; i++) {
+            if (tearsRef.current.length < 3) tearsRef.current.push(new ScreenTear(canvas.width, canvas.height));
+          }
+        }
+
+        // Spawn STITCH effects
         if (isStitch && canvas) {
           const stitchCount = Math.floor(Math.random() * 3) + 2;
           for (let i = 0; i < stitchCount; i++) {
-            if (stitchesRef.current.length < 8) { // Limit
-              stitchesRef.current.push(new Stitch(canvas.width, canvas.height));
-            }
+            if (stitchesRef.current.length < 8) stitchesRef.current.push(new Stitch(canvas.width, canvas.height));
           }
-          setFlashIntensity(0.3); // Softer flash for stitch
         }
 
         // Spawn INK splatter
@@ -743,13 +846,10 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
           const x = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.6;
           const y = canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.4;
           inkSplatterRef.current.spawn(x, y, 15);
-          setFlashIntensity(0.4);
         }
 
-        // Flash for emphasis words
-        if (shouldFlash || isTickTock || isExplosion) {
-          setFlashIntensity(0.8);
-        }
+        // Flash ONLY for emphasis words (tick-tock, chorus keywords)
+        if (shouldFlash || isTickTock || isExplosion) flashRef.current = 0.8;
       }
 
     } else {
@@ -761,10 +861,10 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   }, [currentTime, activeTrack]);
 
   // --- ANIMATION LOOP ---
-  const stateRef = useRef({ showClock, showPills, flashIntensity });
+  const stateRef = useRef({ showClock, showPills, lyricLine });
   useEffect(() => {
-      stateRef.current = { showClock, showPills, flashIntensity };
-  }, [showClock, showPills, flashIntensity]);
+      stateRef.current = { showClock, showPills, lyricLine };
+  }, [showClock, showPills, lyricLine]);
 
   const animateRef = useRef<() => void>();
   animateRef.current = () => {
@@ -781,27 +881,20 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       ctx.fillStyle = 'rgba(10, 10, 10, 0.4)';
       ctx.fillRect(0, 0, width, height);
 
-      // Clock (Always draw in background for style, tick-tock makes it frantic)
-      // If not in specific section, draw it calm
+      // Clock
       if (state.showClock) {
         clockRef.current.update(true);
         clockRef.current.draw(ctx, true);
       } else {
         clockRef.current.update(false);
-        // HIDE CLOCK COMPLETELY unless tick-tock
-        // ctx.save();
-        // ctx.globalAlpha = 0.1;
-        // clockRef.current.draw(ctx, false);
-        // ctx.restore();
       }
 
-      // Pills
-      if (state.showPills) {
-         pillsRef.current.forEach(p => {
-           p.update();
-           p.draw(ctx);
-         });
-      }
+      // Pills (Always draw, variable speed)
+      const pillSpeed = state.lyricLine.isExplosion ? 15 : 1;
+      pillsRef.current.forEach(p => {
+         p.update(pillSpeed);
+         p.draw(ctx);
+      });
 
       // Scratches
       scratchesRef.current.forEach(s => {
@@ -809,7 +902,14 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
         s.draw(ctx);
       });
 
-      // --- NEW EFFECTS ---
+      // Scribbles (Nervous - drawn behind text usually)
+      // Randomly spawn idle scribbles for background texture
+      if (Math.random() > 0.98) {
+          scribblesRef.current[Math.floor(Math.random() * scribblesRef.current.length)].spawn();
+      }
+      scribblesRef.current.forEach(s => { s.update(); s.draw(ctx); });
+
+      // Effects
 
       // Screen Tears (update and draw, remove dead ones)
       tearsRef.current.forEach(tear => {
@@ -852,11 +952,11 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       ctx.fillRect(0, 0, width, height);
 
       // Flash
-      if (state.flashIntensity > 0.01) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${state.flashIntensity})`;
+      if (flashRef.current > 0.01) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${flashRef.current})`;
           ctx.fillRect(0, 0, width, height);
-          stateRef.current.flashIntensity *= 0.9;
-          if (stateRef.current.flashIntensity < 0.01) setFlashIntensity(0); 
+          flashRef.current *= 0.9;
+          if (flashRef.current < 0.01) flashRef.current = 0; 
       }
 
       // Glitch
@@ -885,6 +985,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       canvas.height = window.innerHeight;
       scratchesRef.current = Array.from({ length: 20 }, () => new Scratch(canvas.width, canvas.height));
       pillsRef.current = Array.from({ length: 15 }, () => new Pill(canvas.width, canvas.height));
+      scribblesRef.current = Array.from({ length: 8 }, () => new NervousScribble(canvas.width, canvas.height)); // Init scribbles
       clockRef.current.resize(canvas.width, canvas.height);
     };
     
@@ -912,10 +1013,9 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
 
        {/* LYRICS LAYER */}
        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none mix-blend-exclusion p-8 text-center pb-32">
-          <div className="transform transition-all duration-500" style={{
+          <div className="transition-opacity duration-300" style={{
                opacity: lyricLine.en ? 1 : 0,
-               textShadow: lyricLine.isFall ? "4px 4px 0px rgba(200, 0, 0, 0.5)" : "2px 2px 0px rgba(255, 255, 255, 0.1)",
-               transform: `scale(${0.95 + Math.random() * 0.1}) rotate(${(Math.random() * 2 - 1)}deg)`
+               textShadow: lyricLine.isFall ? "4px 4px 0px rgba(200, 0, 0, 0.5)" : "2px 2px 0px rgba(255, 255, 255, 0.1)"
           }}>
               <div className="text-3xl sm:text-5xl md:text-7xl font-elite uppercase tracking-widest mb-6 filter blur-[0.5px]">
                   {lyricLine.en}
