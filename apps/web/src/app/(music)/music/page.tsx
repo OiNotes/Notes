@@ -26,6 +26,7 @@ type Track = {
   artist: string;
   title: string;
   color: string;
+  coverUrl?: string;
   lyrics: (string | { original: string; translation: string; time?: number })[];
   audioSrc?: string | null;
   syncedLyrics?: {
@@ -41,6 +42,190 @@ type Track = {
 
 // --- INITIAL DATA ---
 const INITIAL_TRACKS: Track[] = [];
+
+// --- BENTO ITEM COMPONENT ---
+const BentoItem = ({ 
+  track, 
+  size = 'small', 
+  onClick,
+  isActive,
+  isPlaying,
+  getColorTheme
+}: { 
+  track: Track; 
+  size?: 'small' | 'medium' | 'large'; 
+  onClick: () => void;
+  isActive?: boolean;
+  isPlaying?: boolean;
+  getColorTheme: (color: string) => { gradient: string };
+}) => {
+  const theme = getColorTheme(track.color);
+  
+  return (
+    <div 
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-[1.5rem] cursor-pointer transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl border border-white/5
+        col-span-1 row-span-1
+        ${size === 'large' ? 'md:col-span-2 md:row-span-2' : ''}
+        ${size === 'medium' ? 'md:row-span-2' : ''}
+        ${isActive ? 'ring-2 ring-amber-500/50' : ''}`}
+    >
+      {/* Background */}
+      <div className="absolute inset-0">
+        {track.coverUrl ? (
+          <img
+            src={track.coverUrl}
+            alt={`${track.title} — обложка`}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+        ) : (
+          <div 
+            className="w-full h-full transition-transform duration-700 group-hover:scale-110" 
+            style={{ background: theme.gradient }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      </div>
+      
+      {/* Play Button */}
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 bg-black/30 ${isActive && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        <div className="w-12 h-12 rounded-full bg-white/80 text-black backdrop-blur-md flex items-center justify-center shadow-lg shadow-black/30">
+          {isActive && isPlaying ? (
+            <div className="flex gap-0.5 items-end h-4">
+              <div className="w-1 bg-white animate-[music-bar_0.6s_ease-in-out_infinite] h-full" />
+              <div className="w-1 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.2s] h-2/3" />
+              <div className="w-1 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.4s] h-full" />
+            </div>
+          ) : (
+            <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          )}
+        </div>
+      </div>
+      
+      {/* Info */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+        <h3 className={`text-white font-semibold leading-tight line-clamp-2 transition-colors
+          ${size === 'large' ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}
+          ${isActive ? 'text-amber-400' : ''}`}>{track.title}</h3>
+        <p className="text-white/70 text-xs sm:text-sm line-clamp-1">{track.artist}</p>
+      </div>
+    </div>
+  );
+};
+
+// --- DOCK COMPONENT ---
+const Dock = ({ 
+  activeCategory, 
+  setActiveCategory, 
+  onStudioOpen,
+  isAdmin 
+}: { 
+  activeCategory: string; 
+  setActiveCategory: (cat: 'all' | 'yours') => void;
+  onStudioOpen: () => void;
+  isAdmin: boolean;
+}) => (
+  <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 pointer-events-auto pb-[env(safe-area-inset-bottom)] mb-4">
+    <div className="flex items-center gap-1 p-1.5 rounded-full bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 shadow-2xl">
+      <button 
+        onClick={() => setActiveCategory('all')}
+        className={`px-4 py-2 rounded-full transition-all text-sm font-medium ${
+          activeCategory === 'all' 
+            ? 'bg-white/20 text-white' 
+            : 'text-white/60 hover:text-white hover:bg-white/10'
+        }`}
+      >
+        Ваши
+      </button>
+      <button 
+        onClick={() => setActiveCategory('yours')}
+        className={`px-4 py-2 rounded-full transition-all text-sm font-medium ${
+          activeCategory === 'yours' 
+            ? 'bg-white/20 text-white' 
+            : 'text-white/60 hover:text-white hover:bg-white/10'
+        }`}
+      >
+        Мои
+      </button>
+      {isAdmin && (
+        <button 
+          onClick={onStudioOpen}
+          className="p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+// --- MINI PLAYER COMPONENT ---
+const MiniPlayer = ({ 
+  track, 
+  isPlaying, 
+  onToggle, 
+  onOpen,
+  getColorTheme 
+}: { 
+  track: Track; 
+  isPlaying: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+  getColorTheme: (color: string) => { gradient: string };
+}) => {
+  const theme = getColorTheme(track.color);
+  
+  return (
+    <div 
+      onClick={onOpen}
+      className="fixed left-4 right-4 sm:left-auto sm:right-8 sm:w-[22rem] sm:max-w-[24rem] z-30 bg-[#121212]/90 backdrop-blur-xl border border-white/10 p-3 rounded-2xl cursor-pointer hover:bg-[#1a1a1a]/90 transition-colors shadow-2xl animate-fade-in-up"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 4.75rem)' }}
+    >
+      <div className="flex items-center gap-3">
+        {/* Cover */}
+        <div 
+          className="w-12 h-12 rounded-xl flex-shrink-0"
+          style={{ background: theme.gradient }}
+        />
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium text-sm truncate">{track.title}</p>
+          <p className="text-white/50 text-xs truncate">{track.artist}</p>
+        </div>
+        
+        {/* Play/Pause */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 hover:scale-105 transition-transform"
+        >
+          {isPlaying ? (
+            <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- AMBIENT BACKGROUND COMPONENT ---
+const AmbientBackground = () => (
+  <div className="fixed inset-0 z-0 overflow-hidden bg-[#050505] pointer-events-none">
+    <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-purple-900/20 rounded-full blur-[120px] animate-blob" />
+    <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-amber-900/15 rounded-full blur-[120px] animate-blob" style={{ animationDelay: '-7s' }} />
+    <div className="absolute top-1/4 right-1/4 w-1/2 h-1/2 bg-rose-900/10 rounded-full blur-[100px] animate-blob" style={{ animationDelay: '-14s' }} />
+  </div>
+);
 
 // --- COLOR THEMES (Apple Music Style) ---
 type ColorTheme = {
@@ -302,6 +487,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     audioFile: File;
     lyrics: any[];
     category: 'yours' | 'all';
+    coverFile?: File | null;
   }) => Promise<void>,
   existingTracks?: Track[],
   onEditTrack?: (track: Track) => Promise<void>,
@@ -319,8 +505,8 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
-  const [artistName, setArtistName] = useState("Unknown Artist");
-  const [trackTitle, setTrackTitle] = useState("Untitled Track");
+  const [artistName, setArtistName] = useState("Неизвестный артист");
+  const [trackTitle, setTrackTitle] = useState("Без названия");
   const [trackColor, setTrackColor] = useState(COLOR_THEMES[0].tailwind);
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [editArtist, setEditArtist] = useState("");
@@ -330,6 +516,8 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
   const [showFlash, setShowFlash] = useState(false);
   const [editingStrobeTrack, setEditingStrobeTrack] = useState<Track | null>(null);
   const [trackCategory, setTrackCategory] = useState<'yours' | 'all'>('yours');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string>('');
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
@@ -346,6 +534,14 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
         audioRef.current.src = url;
         audioRef.current.load();
       }
+    }
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverFile(file);
+      setCoverPreview(URL.createObjectURL(file));
     }
   };
 
@@ -426,12 +622,12 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
           setParsedLyrics(data);
           setHasJsonLoaded(true);
           if (audioFile) setStep(3);
-          else alert("Design Loaded! Now please upload Audio.");
+          else alert("Дизайн загружен! Теперь загрузите аудио.");
         } else {
           throw new Error("Invalid format");
         }
       } catch (err) {
-        alert("Error: Invalid JSON format.");
+        alert("Ошибка: неверный формат JSON.");
       }
     };
     reader.readAsText(file);
@@ -443,6 +639,8 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     setRawLyrics("");
     setParsedLyrics([]);
     setHasJsonLoaded(false);
+    setCoverFile(null);
+    setCoverPreview('');
     setStep(1);
   };
 
@@ -567,7 +765,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
 
   const handleFinalPublish = async () => {
     if (!audioFile) {
-      alert("Please upload an audio file first");
+      alert("Сначала загрузите аудиофайл");
       return;
     }
 
@@ -578,12 +776,13 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       audioFile: audioFile,
       lyrics: parsedLyrics,
       category: trackCategory,
+      coverFile: coverFile,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[#080808] flex flex-col text-white font-sans selection:bg-amber-500 selection:text-black">
+    <div className="fixed inset-0 z-50 bg-[#080808] flex flex-col text-white font-sans selection:bg-amber-500 selection:text-black">
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
@@ -597,7 +796,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       {/* Flash Overlay */}
       {showFlash && (
         <div
-          className="fixed inset-0 z-[200] bg-white pointer-events-none"
+          className="fixed inset-0 z-50 bg-white pointer-events-none"
           style={{ animation: 'strobe-flash 0.15s ease-out forwards' }}
         />
       )}
@@ -606,16 +805,16 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
       <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0a0a0a] shrink-0">
         <div className="flex items-center gap-2 text-amber-500 font-bold tracking-wider cursor-pointer" onClick={() => setStep(0)}>
           <Edit3 size={20} />
-          <span>THE WORKSHOP</span>
+          <span>СТУДИЯ</span>
         </div>
         <div className="flex items-center gap-4 text-sm font-mono text-white/50">
-          <span className={step === 0 ? "text-white font-bold" : ""}>Tracks</span>
+          <span className={step === 0 ? "text-white font-bold" : ""}>Треки</span>
           <ChevronRight size={14} />
-          <span className={step === 1 ? "text-white font-bold" : ""}>01. Setup</span>
+          <span className={step === 1 ? "text-white font-bold" : ""}>01. Загрузка</span>
           <ChevronRight size={14} />
-          <span className={step === 2 ? "text-white font-bold" : ""}>02. Sync</span>
+          <span className={step === 2 ? "text-white font-bold" : ""}>02. Синхро</span>
           <ChevronRight size={14} />
-          <span className={step === 3 ? "text-white font-bold" : ""}>03. Studio</span>
+          <span className={step === 3 ? "text-white font-bold" : ""}>03. Студия</span>
         </div>
         <button onClick={onClose} className="text-white/50 hover:text-white"><X size={24} /></button>
       </header>
@@ -711,7 +910,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                               setStep(4); // Новый step для редактирования стробоскопов
                             }}
                             className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 transition-colors"
-                            title="Edit Strobe"
+                            title="Редактировать строб"
                           >
                             <Zap size={16} />
                           </button>
@@ -755,8 +954,8 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
             <div className="text-center py-8">
-              <h1 className="text-4xl font-bold mb-2">New Project</h1>
-              <p className="text-white/40">Create a new track or load a save</p>
+              <h1 className="text-4xl font-bold mb-2">Новый проект</h1>
+              <p className="text-white/40">Создайте трек или загрузите сохранение</p>
             </div>
 
             {/* Track Meta */}
@@ -764,13 +963,51 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
               <input
                 value={artistName} onChange={e => setArtistName(e.target.value)}
                 className="bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500 transition-colors"
-                placeholder="Artist Name"
+                placeholder="Имя артиста"
               />
               <input
                 value={trackTitle} onChange={e => setTrackTitle(e.target.value)}
                 className="bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-amber-500 transition-colors"
-                placeholder="Track Title"
+                placeholder="Название трека"
               />
+            </div>
+
+            {/* Cover Image Upload */}
+            <div className="bg-[#111] border border-white/10 rounded-xl p-4">
+              <label className="text-sm text-white/60 mb-3 block">Обложка</label>
+              <div className="flex items-center gap-4">
+                {coverPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={coverPreview} 
+                      alt="Превью обложки" 
+                      className="w-20 h-20 rounded-xl object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setCoverFile(null); setCoverPreview(''); }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-20 h-20 rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center cursor-pointer hover:border-white/40 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverUpload}
+                      className="hidden"
+                    />
+                    <svg className="w-8 h-8 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </label>
+                )}
+                <div className="text-xs text-white/40">
+                  JPG или PNG до 5 МБ
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -780,10 +1017,10 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                   <FileAudio size={32} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium">{audioFile ? "Audio Loaded" : "Upload Audio"}</h3>
+                  <h3 className="text-lg font-medium">{audioFile ? "Аудио загружено" : "Загрузите аудио"}</h3>
                   <p className="text-sm text-white/40 mb-4">{audioFile ? audioFile.name : "MP3, WAV, FLAC"}</p>
                   <label className="cursor-pointer px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors inline-block">
-                    {audioFile ? "Change File" : "Browse Files"}
+                    {audioFile ? "Сменить файл" : "Выбрать файл"}
                     <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
                   </label>
                 </div>
@@ -796,10 +1033,10 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                   {hasJsonLoaded ? <Check size={32} /> : <Upload size={32} />}
                 </div>
                 <div>
-                  <h3 className="text-lg font-medium">{hasJsonLoaded ? "Design Loaded" : "Load JSON Design"}</h3>
-                  <p className="text-sm text-white/40 mb-4">{hasJsonLoaded ? `${parsedLyrics.length} lines parsed` : "Load .json save file"}</p>
+                  <h3 className="text-lg font-medium">{hasJsonLoaded ? "Дизайн загружен" : "Загрузите JSON"}</h3>
+                  <p className="text-sm text-white/40 mb-4">{hasJsonLoaded ? `${parsedLyrics.length} строк разобрано` : "Импортируйте файл .json"}</p>
                   <label className="cursor-pointer px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors inline-block">
-                    Import JSON
+                    Импорт JSON
                     <input type="file" accept=".json" className="hidden" onChange={handleImportJSON} />
                   </label>
                 </div>
@@ -810,28 +1047,28 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
             {!hasJsonLoaded && (
               <div className="bg-[#111] border border-white/10 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4 text-white/70">
-                  <div className="flex items-center gap-2">
-                    <FileText size={20} />
-                    <h3 className="font-medium">Lyrics Input</h3>
-                  </div>
-                  <div className="flex bg-white/5 rounded-lg p-1 gap-1">
-                    <button
-                      onClick={() => setParseMode('auto')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${parseMode === 'auto' ? 'bg-amber-500 text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                    >
-                      Auto-Detect
-                    </button>
-                    <button
-                      onClick={() => setParseMode('alternating')}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${parseMode === 'alternating' ? 'bg-amber-500 text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                    >
-                      Alternating
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <FileText size={20} />
+                  <h3 className="font-medium">Текст песни</h3>
                 </div>
-                <textarea
-                  className="w-full h-64 bg-black/50 border border-white/10 rounded-lg p-4 font-mono text-sm text-white/80 focus:outline-none focus:border-amber-500 transition-colors resize-none"
-                  placeholder={`Original Line 1\nTranslation Line 1\n\nOriginal Line 2\nTranslation Line 2`}
+                <div className="flex bg-white/5 rounded-lg p-1 gap-1">
+                  <button
+                    onClick={() => setParseMode('auto')}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${parseMode === 'auto' ? 'bg-amber-500 text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+                  >
+                    Авто
+                  </button>
+                  <button
+                    onClick={() => setParseMode('alternating')}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${parseMode === 'alternating' ? 'bg-amber-500 text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+                  >
+                    Чередование
+                  </button>
+                </div>
+              </div>
+              <textarea
+                className="w-full h-64 bg-black/50 border border-white/10 rounded-lg p-4 font-mono text-sm text-white/80 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                  placeholder={`Оригинал строка 1\nПеревод строка 1\n\nОригинал строка 2\nПеревод строка 2`}
                   value={rawLyrics}
                   onChange={(e) => setRawLyrics(e.target.value)}
                 />
@@ -841,13 +1078,13 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
             {/* Actions */}
             <div className="flex justify-between items-center pt-4 border-t border-white/5">
               <button onClick={clearProject} className="text-white/30 hover:text-red-500 flex items-center gap-2 text-sm transition-colors">
-                <Trash2 size={16} /> Clear
+                <Trash2 size={16} /> Сбросить
               </button>
               <div className="flex gap-4">
                 {hasJsonLoaded ? (
-                  <Button onClick={() => setStep(3)} disabled={!audioFile}>Open Studio <Edit3 size={18} /></Button>
+                  <Button onClick={() => setStep(3)} disabled={!audioFile}>Открыть студию <Edit3 size={18} /></Button>
                 ) : (
-                  <Button onClick={handleLyricsParse} disabled={!audioFile || !rawLyrics}>Start Syncing <ChevronRight size={18} /></Button>
+                  <Button onClick={handleLyricsParse} disabled={!audioFile || !rawLyrics}>Начать синхронизацию <ChevronRight size={18} /></Button>
                 )}
               </div>
             </div>
@@ -865,9 +1102,9 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 </div>
               </div>
               <div className="text-center flex flex-col gap-2">
-                <span className="text-white/40 text-sm uppercase tracking-widest">Mode</span>
+                <span className="text-white/40 text-sm uppercase tracking-widest">Режим</span>
                 <div className="flex items-center gap-3">
-                  <div className="font-bold text-white">LIVE RECORDING (SPACEBAR)</div>
+                  <div className="font-bold text-white">ЖИВАЯ ЗАПИСЬ (Пробел)</div>
                   <button
                     onClick={() => setStrobeMode(!strobeMode)}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
@@ -876,7 +1113,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                         : 'bg-white/10 text-white/50 hover:bg-white/20'
                     }`}
                   >
-                    STROBE {strobeMode ? 'ON' : 'OFF'}
+                    СТРОБ {strobeMode ? 'ВКЛ' : 'ВЫКЛ'}
                   </button>
                 </div>
               </div>
@@ -907,7 +1144,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
               </div>
             </div>
             <div className="mt-6 flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(1)}>Назад</Button>
               <Button onClick={() => setStep(3)}>Finish & Edit <Check size={18} /></Button>
             </div>
           </div>
@@ -915,12 +1152,12 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
 
         {/* STEP 3: STUDIO EDITOR */}
         {step === 3 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full max-w-6xl mx-auto">
-            <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden">
-              <div className="bg-[#111] p-4 rounded-xl border border-white/10 flex items-center justify-between shrink-0">
-                <h3 className="font-bold">Timing Editor</h3>
-                <div className="text-xs text-white/40">Fine-tune (s)</div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full max-w-6xl mx-auto">
+              <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-hidden">
+                <div className="bg-[#111] p-4 rounded-xl border border-white/10 flex items-center justify-between shrink-0">
+                  <h3 className="font-bold">Тайминги</h3>
+                  <div className="text-xs text-white/40">Точная настройка (сек)</div>
+                </div>
               <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                 {parsedLyrics.map((line, index) => (
                   <div key={line.id} className={`p-3 rounded-lg border transition-colors cursor-pointer ${index === activeLineIndex ? 'bg-white/10 border-amber-500' : 'bg-[#111] border-white/5 hover:border-white/20'}`}
@@ -956,7 +1193,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                       <div className="text-3xl md:text-5xl font-lyrics italic text-white animate-in fade-in slide-in-from-bottom-2 duration-300">{parsedLyrics[activeLineIndex].translation}</div>
                       <div className="text-xl text-white/50 font-serif mt-2 animate-in fade-in duration-500">{parsedLyrics[activeLineIndex].original}</div>
                     </>
-                  ) : <div className="text-white/20">Preview Area</div>}
+                  ) : <div className="text-white/20">Предпросмотр</div>}
                 </div>
                 {/* Controls */}
                 <div className="w-full mt-auto relative z-10 bg-[#111]/80 backdrop-blur rounded-xl p-4 border border-white/5">
@@ -988,7 +1225,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
 
               {/* Color Picker */}
               <div className="bg-[#111] p-4 rounded-xl border border-white/10">
-                <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Vinyl Style</label>
+                <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Стиль винила</label>
                 <div className="flex gap-2">
                   {COLOR_THEMES.map((theme) => (
                     <button
@@ -1025,9 +1262,9 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <Button variant="outline" onClick={() => setStep(2)} className="justify-center"><Mic size={18} /> Re-Sync</Button>
-                <Button variant="secondary" onClick={exportDesign} className="justify-center"><Download size={18} /> Save JSON</Button>
-                <Button onClick={handleFinalPublish} className="justify-center"><Share size={18} /> Publish</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="justify-center"><Mic size={18} /> Синхронизация</Button>
+                <Button variant="secondary" onClick={exportDesign} className="justify-center"><Download size={18} /> Сохранить JSON</Button>
+                <Button onClick={handleFinalPublish} className="justify-center"><Share size={18} /> Опубликовать</Button>
               </div>
             </div>
           </div>
@@ -1045,11 +1282,11 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 </div>
               </div>
               <div className="text-center">
-                <span className="text-white/40 text-sm uppercase tracking-widest">Strobe Editor</span>
+                <span className="text-white/40 text-sm uppercase tracking-widest">Редактор стробов</span>
                 <div className="font-bold text-white">{editingStrobeTrack.title} - {editingStrobeTrack.artist}</div>
               </div>
               <div className="flex gap-2 items-center">
-                <span className="text-white/40 text-xs">Press 'W' to add strobe</span>
+                <span className="text-white/40 text-xs">Нажмите 'W', чтобы добавить строб</span>
                 <button
                   onClick={() => setStrobeMode(!strobeMode)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
@@ -1058,7 +1295,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                       : 'bg-white/10 text-white/50 hover:bg-white/20'
                   }`}
                 >
-                  STROBE {strobeMode ? 'ON' : 'OFF'}
+                  СТРОБ {strobeMode ? 'ВКЛ' : 'ВЫКЛ'}
                 </button>
               </div>
             </div>
@@ -1114,7 +1351,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
 
               {/* Markers List */}
               <div className="text-sm text-white/60 mb-4">
-                <span className="text-yellow-500 font-bold">{strobeMarkers.length}</span> strobe markers
+                <span className="text-yellow-500 font-bold">{strobeMarkers.length}</span> строб-маркеров
               </div>
               <div className="flex flex-wrap gap-2">
                 {strobeMarkers.sort((a, b) => a.time - b.time).map((marker, idx) => (
@@ -1252,7 +1489,7 @@ const PinModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () =
   };
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm">
       <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
         <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
           <X size={20} />
@@ -1262,8 +1499,8 @@ const PinModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () =
           <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
             <Edit3 className="text-amber-500" size={28} />
           </div>
-          <h2 className="text-2xl font-lyrics italic text-white mb-2">Workshop Access</h2>
-          <p className="text-white/50 text-sm">Enter 4-digit PIN code</p>
+          <h2 className="text-2xl font-lyrics italic text-white mb-2">Доступ в студию</h2>
+          <p className="text-white/50 text-sm">Введите 4-значный PIN</p>
         </div>
 
         <div className="flex gap-4 justify-center mb-6">
@@ -1580,6 +1817,7 @@ export default function MusicApp() {
     audioFile: File;
     lyrics: any[];
     category: 'yours' | 'all';
+    coverFile?: File | null;
   }) => {
     try {
       console.log("Publishing track...", {
@@ -1589,11 +1827,37 @@ export default function MusicApp() {
         audioFileName: trackData.audioFile?.name,
         audioFileSize: trackData.audioFile?.size,
         audioFileType: trackData.audioFile?.type,
-        lyricsCount: trackData.lyrics?.length
+        lyricsCount: trackData.lyrics?.length,
+        hasCover: !!trackData.coverFile
       });
 
-      // 1. Upload audio to Cloudinary (no size limit, bypasses Vercel 4.5MB limit)
-      console.log("Step 1: Uploading audio to Cloudinary...");
+      // 1. Upload cover image to Cloudinary if exists
+      let coverUrl = '';
+      if (trackData.coverFile) {
+        console.log("Step 1a: Uploading cover image to Cloudinary...");
+        const coverFormData = new FormData();
+        coverFormData.append('file', trackData.coverFile);
+        coverFormData.append('upload_preset', 'Oi notes');
+
+        const coverRes = await fetch(
+          'https://api.cloudinary.com/v1_1/djtbtkddr/image/upload',
+          {
+            method: 'POST',
+            body: coverFormData,
+          }
+        );
+
+        if (coverRes.ok) {
+          const coverData = await coverRes.json();
+          coverUrl = coverData.secure_url;
+          console.log("Cover upload success:", coverUrl);
+        } else {
+          console.warn("Cover upload failed, continuing without cover");
+        }
+      }
+
+      // 2. Upload audio to Cloudinary (no size limit, bypasses Vercel 4.5MB limit)
+      console.log("Step 2: Uploading audio to Cloudinary...");
 
       const cloudinaryFormData = new FormData();
       cloudinaryFormData.append('file', trackData.audioFile);
@@ -1619,12 +1883,13 @@ export default function MusicApp() {
       console.log("Upload success:", audioPath);
 
       // 2. Create track in database
-      console.log("Step 2: Creating track in database...");
+      console.log("Step 3: Creating track in database...");
       const trackPayload = {
         artist: trackData.artist,
         title: trackData.title,
         color: trackData.color,
         audioPath,
+        coverUrl,
         lyrics: trackData.lyrics,
         category: trackData.category,
       };
@@ -1944,20 +2209,26 @@ export default function MusicApp() {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#050505] text-white font-sans overflow-hidden selection:bg-amber-500 selection:text-black">
+    <div className="relative h-full w-full bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black flex flex-col overflow-hidden">
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
-        /* Apple System Font Stack - Adjusted for Lyrics */
-        .font-lyrics { 
+        /* Font helpers */
+        .font-lyrics {
           font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          font-weight: 800; /* Heavy weight like Apple Music */
-          letter-spacing: -0.02em; /* Tighter tracking */
+          font-weight: 800;
+          letter-spacing: -0.02em;
         }
         .font-sans { font-family: 'Inter', sans-serif; }
-        
+
         .animate-spin-slow { animation: spin 6s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+          25% { transform: translate(10%, 5%) scale(1.1); opacity: 0.8; }
+          50% { transform: translate(5%, 15%) scale(0.95); opacity: 0.5; }
+          75% { transform: translate(-5%, 10%) scale(1.05); opacity: 0.7; }
+        }
+        .animate-blob { animation: blob 20s ease-in-out infinite; }
 
         @keyframes strobe-flash {
           0% { opacity: 1; }
@@ -1971,94 +2242,51 @@ export default function MusicApp() {
         .animate-lyric-crossfade {
           animation: lyric-crossfade 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         }
-        
+
         @keyframes music-bar {
           0%, 100% { height: 33%; }
           50% { height: 100%; }
         }
 
-        /* VISCERAL SURGE - The "Feeling" Effect */
         @keyframes visceral-surge {
-          0% { 
-            transform: scale(1); 
-            color: white; 
-            filter: brightness(1);
+          0%, 100% {
+            color: #ffffff;
+            text-shadow: 0 0 0 transparent;
+            transform: scale(1);
           }
-          20% { 
-            transform: scale(1.05); 
-            color: #fff1f2; 
-          }
-          50% { 
-            transform: scale(1.35); /* Magnifying Glass Effect */
-            color: #e11d48; /* Pure Red */
-            filter: drop-shadow(0 0 15px rgba(225, 29, 72, 0.6));
-          }
-          100% { 
-            transform: scale(1.1); /* Linger slightly larger */
-            color: #be123c; /* Deep Blood Red */
-            filter: drop-shadow(0 0 5px rgba(190, 18, 60, 0.4));
+          50% {
+            color: #ef4444;
+            text-shadow: 0 0 30px rgba(225, 29, 72, 0.8);
+            transform: scale(1.06);
           }
         }
-
         .animate-visceral-surge {
-           animation-name: visceral-surge;
-           animation-timing-function: cubic-bezier(0.25, 0.4, 0.25, 1);
+          animation: visceral-surge 3s ease-in-out infinite;
         }
 
-        /* SCRATCH MODE CHAOS */
         @keyframes scratch-spin {
-           0% { transform: rotate(0deg) scale(1); }
-           10% { transform: rotate(-25deg) scale(1.05); } 
-           20% { transform: rotate(15deg) scale(0.95); } 
-           30% { transform: rotate(-45deg) scale(1.1); } 
-           40% { transform: rotate(5deg) scale(1); }
-           50% { transform: rotate(-10deg) scale(1.02); }
-           60% { transform: rotate(360deg) scale(1); } 
-           70% { transform: rotate(-20deg) scale(1.05); }
-           100% { transform: rotate(0deg) scale(1); }
+          0% { transform: rotate(0deg) scale(1); }
+          20% { transform: rotate(-12deg) scale(1.04); }
+          50% { transform: rotate(8deg) scale(0.98); }
+          80% { transform: rotate(-6deg) scale(1.02); }
+          100% { transform: rotate(0deg) scale(1); }
+        }
+        .animate-scratch-spin {
+          animation: scratch-spin 0.8s linear infinite;
         }
 
         @keyframes reality-warp {
-           0% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
-           25% { transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) scale(1.02); filter: hue-rotate(45deg) contrast(1.2); }
-           50% { transform: perspective(1000px) rotateX(-2deg) rotateY(2deg) scale(0.98); filter: hue-rotate(-45deg) contrast(1.1); }
-           75% { transform: perspective(1000px) rotateX(1deg) rotateY(-1deg) scale(1.05); filter: hue-rotate(90deg); }
-           100% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
+          0% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
+          25% { transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) scale(1.02); filter: hue-rotate(45deg) contrast(1.2); }
+          50% { transform: perspective(1000px) rotateX(-2deg) rotateY(2deg) scale(0.98); filter: hue-rotate(-45deg) contrast(1.1); }
+          75% { transform: perspective(1000px) rotateX(1deg) rotateY(-1deg) scale(1.05); filter: hue-rotate(90deg); }
+          100% { transform: perspective(1000px) rotateX(0) rotateY(0) scale(1); filter: hue-rotate(0deg); }
         }
-
-        .animate-scratch-spin {
-           animation: scratch-spin 0.8s linear infinite;
-        }
-        
         .animate-reality-warp {
-           animation: reality-warp 4s ease-in-out infinite;
-           will-change: transform, filter;
+          animation: reality-warp 4s ease-in-out infinite;
+          will-change: transform, filter;
         }
 
-        /* Deep Glow for surge */
-        .animate-deep-glow {
-           animation: visceral-surge 4s cubic-bezier(0.25, 0.4, 0.25, 1);
-        }
-
-        /* Apple Music Style Mesh Gradient Animations - GPU Accelerated */
-        @keyframes meshFloat1 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          33% { transform: translate3d(5%, 8%, 0) scale(1.05); }
-          66% { transform: translate3d(-3%, 4%, 0) scale(0.98); }
-        }
-
-        @keyframes meshFloat2 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(-6%, -4%, 0) scale(1.08); }
-        }
-
-        @keyframes meshFloat3 {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          33% { transform: translate3d(8%, -6%, 0) scale(1.1); }
-          66% { transform: translate3d(-4%, 10%, 0) scale(0.95); }
-        }
-
-        /* Vertical Slide Animations for Lyrics - Refined */
         @keyframes slide-current {
           0% {
             transform: translateY(30px) scale(0.95);
@@ -2071,80 +2299,17 @@ export default function MusicApp() {
             filter: blur(0);
           }
         }
+        .animate-slide-current {
+          animation: slide-current 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
 
         @keyframes fade-in-delayed {
           0% { opacity: 0; }
           50% { opacity: 0; }
           100% { opacity: 1; }
         }
-
-        .animate-slide-current {
-          animation: slide-current 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        }
-
         .animate-fade-in-delayed {
           animation: fade-in-delayed 1s ease-out forwards;
-        }
-
-        /* CLIMAX SHAKE - The "Drrr-Drrr" Drum Roll Effect - INTENSIFIED */
-        @keyframes climax-shake {
-           0% { transform: translate(0, 0) scale(1.3) rotate(0deg); filter: hue-rotate(0deg) blur(0px) contrast(1.5); }
-           15% { transform: translate(20px, -20px) scale(1.6) rotate(5deg); filter: hue-rotate(60deg) blur(3px) invert(1) saturate(3); }
-           30% { transform: translate(-25px, 15px) scale(1.2) rotate(-8deg); filter: hue-rotate(120deg) blur(0px) invert(0) contrast(2); }
-           45% { transform: translate(15px, 25px) scale(1.7) rotate(10deg); filter: hue-rotate(180deg) blur(5px) invert(1) brightness(1.5); }
-           60% { transform: translate(-20px, -20px) scale(1.1) rotate(-5deg); filter: hue-rotate(240deg) blur(0px) invert(0) saturate(4); }
-           75% { transform: translate(25px, 10px) scale(1.8) rotate(8deg); filter: hue-rotate(300deg) blur(4px) invert(1) contrast(2.5); }
-           90% { transform: translate(-10px, -15px) scale(1.4) rotate(-3deg); filter: hue-rotate(350deg) blur(2px) invert(0); }
-           100% { transform: translate(0, 0) scale(1.3) rotate(0deg); filter: hue-rotate(0deg) blur(0px) contrast(1.5); }
-        }
-
-        .animate-climax-shake {
-           animation: climax-shake 0.06s linear infinite; /* Even faster - terrifying */
-        }
-
-        /* VISCERAL SURGE - ARTISTIC "SOUL" EFFECT (NO SCALE) */
-        @keyframes visceral-surge {
-          0%, 100% { 
-            color: #ffffff; 
-            text-shadow: 0 0 0 transparent;
-          }
-          50% { 
-            color: #ef4444; /* Pure Red */
-            text-shadow: 0 0 30px rgba(225, 29, 72, 0.8); /* Strong Glow */
-          }
-        }
-
-        .animate-visceral-surge {
-           animation: visceral-surge 3s ease-in-out infinite;
-        }
-
-        /* SCRATCH MODE - CHAOS SPIRAL (INTENSE & VARIED) */
-        @keyframes chaos-spiral {
-           0% { transform: scale(1) rotate(0deg) translate3d(0,0,0); filter: hue-rotate(0deg) contrast(1); }
-           10% { transform: scale(1.1) rotate(-10deg) skewX(20deg); filter: hue-rotate(45deg) contrast(1.5) invert(0); }
-           20% { transform: scale(0.9) rotate(15deg) translate3d(-50px, 50px, 100px); filter: hue-rotate(90deg) blur(2px); }
-           30% { transform: scale(1.3) rotate(-180deg) skewY(-10deg); filter: invert(1) hue-rotate(180deg); }
-           45% { transform: scale(0.8) rotate(90deg) perspective(500px) rotateX(45deg); filter: sepia(1) saturate(5); }
-           60% { transform: scale(1.4) rotate(360deg) translate3d(50px, -50px, 0); filter: hue-rotate(270deg) blur(0px) contrast(2); }
-           75% { transform: scale(0.9) rotate(-45deg) skewX(-20deg); filter: invert(0) hue-rotate(320deg); }
-           90% { transform: scale(1.1) rotate(10deg) perspective(1000px) rotateY(180deg); filter: hue-rotate(0deg) blur(4px); }
-           100% { transform: scale(1) rotate(0deg) translate3d(0,0,0); filter: none; }
-        }
-
-        @keyframes scratch-shake {
-           0%, 100% { transform: translate(0,0) rotate(0deg); }
-           25% { transform: translate(-5px, 5px) rotate(-5deg); }
-           50% { transform: translate(5px, -5px) rotate(5deg); }
-           75% { transform: translate(-5px, -5px) rotate(-5deg); }
-        }
-
-        .animate-scratch-spin {
-           animation: scratch-shake 0.1s linear infinite; /* Violet shaking */
-        }
-        
-        .animate-reality-warp {
-           animation: chaos-spiral 3s ease-in-out infinite;
-           will-change: transform, filter;
         }
       `}</style>
 
@@ -2165,173 +2330,72 @@ export default function MusicApp() {
         }}
       />
 
-      {/* UNIFIED HEADER (Grid auto row) */}
-      <div className="z-40 w-full bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5 supports-[backdrop-filter]:bg-[#050505]/60">
-        <div className="max-w-7xl mx-auto px-6 pt-11 pb-0">
-          {/* Title Row */}
-          <div className="flex items-end justify-between mb-1">
-             <div className="flex flex-col items-start">
-                <h1 className="text-[28px] font-bold text-white tracking-tight leading-none font-lyrics">Collection</h1>
-             </div>
-             
-             {/* Admin Action (Minimalist) */}
-             {isAdmin && (
-                <button
-                  onClick={() => setShowStudio(true)}
-                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <Upload size={16} />
-                </button>
-             )}
-          </div>
+      {/* AMBIENT BACKGROUND */}
+      <AmbientBackground />
 
-          {/* Tabs Row */}
-          <div className="py-2">
-             <CategoryTabs active={activeCategory} onChange={setActiveCategory} />
-          </div>
+      {/* MINIMAL HEADER */}
+      <header className="flex-shrink-0 z-40 w-full pt-12 pb-4 px-6 relative">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-[32px] font-bold text-white tracking-tight leading-none font-lyrics">Коллекция</h1>
         </div>
-      </div>
+      </header>
 
-      {/* TRACKS GRID - Scrollable Area (Flex 1) */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 pt-1 pb-32 min-h-full">
-          
-          <div className="flex flex-col gap-0 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-x-6 sm:gap-y-2 md:gap-y-3">
-            {filteredTracks.map((track, index) => (
-              <div
+      {/* TRACKS BENTO GRID - Scrollable Area */}
+      <section
+        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain z-10"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 auto-rows-[minmax(140px,1fr)] sm:auto-rows-[minmax(170px,1fr)] lg:auto-rows-[minmax(200px,1fr)]">
+            {filteredTracks.map((track, i) => (
+              <BentoItem
                 key={track.id}
+                track={track}
+                size={i === 0 ? 'large' : i < 3 ? 'medium' : 'small'}
                 onClick={() => handleSelectTrack(track)}
-                className="group cursor-pointer relative flex flex-row items-center py-2 sm:py-3 sm:px-3 rounded-xl hover:bg-white/[0.04] active:scale-[0.98] transition-all duration-200 sm:hover:bg-white/[0.02]"
-                style={{ animationDelay: `${index * 30}ms` }}
-              >
-                {/* 1. Cover Art - Supercleancut */}
-                <div className="relative w-[48px] h-[48px] sm:w-16 sm:h-16 rounded-lg sm:rounded-xl overflow-hidden shadow-md shrink-0 mr-3 bg-[#1c1c1c] group-hover:shadow-lg transition-shadow">
-                   {/* Gradient Placeholder */}
-                   <div className="absolute inset-0" style={{ background: getColorTheme(track.color).gradient }} />
-                   
-                   {/* Overlay Play Icon on Hover/Active */}
-                   <div className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 ${activeTrack?.id === track.id && isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                      {activeTrack?.id === track.id && isPlaying ? (
-                         <div className="flex gap-0.5 items-end h-3">
-                            <div className="w-0.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite] h-full" />
-                            <div className="w-0.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.2s] h-2/3" />
-                            <div className="w-0.5 bg-white animate-[music-bar_0.6s_ease-in-out_infinite_0.4s] h-full" />
-                         </div>
-                      ) : (
-                        <Play size={18} fill="white" className="text-white" />
-                      )}
-                   </div>
-                </div>
-
-                {/* 2. Info & Separator */}
-                <div className="flex-1 flex flex-col justify-center min-w-0 pr-2 h-[48px] sm:h-auto relative overflow-hidden">
-                  <h3 className={`text-[15px] sm:text-base font-medium leading-tight truncate w-full transition-colors ${activeTrack?.id === track.id ? 'text-amber-400' : 'text-white group-hover:text-white/90'}`}>
-                    {track.title}
-                  </h3>
-                  <p className="text-[13px] sm:text-sm text-white/40 truncate w-full font-medium mt-0.5">
-                    {track.artist}
-                  </p>
-                  
-                  {/* Subtle Separator (iOS Style) */}
-                  <div className="absolute bottom-[-12px] left-0 right-0 h-px bg-white/[0.03] sm:hidden group-last:hidden" />
-                </div>
-
-                {/* 3. Actions (More Button) - hidden on mobile for more text space */}
-                <button
-                  className="hidden sm:block p-2 -mr-1 rounded-full text-white/20 hover:text-white transition-colors"
-                  onClick={(e) => { e.stopPropagation(); /* Handle menu */ }}
-                >
-                  <MoreVertical size={18} />
-                </button>
-              </div>
+                isActive={activeTrack?.id === track.id}
+                isPlaying={isPlaying}
+                getColorTheme={getColorTheme}
+              />
             ))}
           </div>
-        </main>
-      </div>
-
-      {/* --- PIN MODAL --- */}
-      {showPinModal && (
-        <PinModal onClose={() => setShowPinModal(false)} onSuccess={handlePinSuccess} />
-      )}
-
-      {/* --- STUDIO MODAL --- */}
-      {showStudio && (
-        <StudioModal
-          onClose={() => setShowStudio(false)}
-          onPublish={handlePublish}
-          existingTracks={tracks}
-          onEditTrack={async (track) => {
-            try {
-              const response = await fetch(`/api/tracks/${track.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ artist: track.artist, title: track.title })
-              });
-              if (!response.ok) throw new Error('Failed to update');
-              const updatedTrack = await response.json();
-              setTracks(prev => prev.map(t => t.id === updatedTrack.id ? { ...t, artist: updatedTrack.artist, title: updatedTrack.title } : t));
-            } catch (error) {
-              console.error('Error updating track:', error);
-              alert('Ошибка при обновлении');
-            }
-          }}
-          onDeleteTrack={async (trackId) => {
-            try {
-              const response = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
-              if (!response.ok) throw new Error('Failed to delete');
-              setTracks(prev => prev.filter(t => t.id !== trackId));
-              if (activeTrack?.id === trackId) {
-                setActiveTrack(null);
-                setIsPlaying(false);
-              }
-            } catch (error) {
-              console.error('Error deleting track:', error);
-              alert('Ошибка при удалении');
-            }
-          }}
-        />
-      )}
-
-      {/* EDIT TRACK MODAL */}
-      {isEditModalOpen && editingTrack && (
-        <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-white">Редактировать трек</h2>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-widest text-white/40">Артист</label>
-                <input
-                  value={editingTrack?.artist || ''}
-                  onChange={e => setEditingTrack(prev => prev ? { ...prev, artist: e.target.value } : null)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-widest text-white/40">Название</label>
-                <input
-                  value={editingTrack?.title || ''}
-                  onChange={e => setEditingTrack(prev => prev ? { ...prev, title: e.target.value } : null)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500 transition-colors"
-                />
-              </div>
+          
+          {/* Empty State */}
+          {filteredTracks.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-white/30">
+              <FileAudio size={48} className="mb-4 opacity-50" />
+              <p className="text-lg">Нет треков</p>
+              <p className="text-sm mt-1">Добавьте первый трек через студию</p>
             </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>Отмена</Button>
-              <Button onClick={handleUpdateTrack}>Сохранить</Button>
-            </div>
-          </div>
+          )}
         </div>
+      </section>
+      
+      {/* DOCK NAVIGATION */}
+      <Dock 
+        activeCategory={activeCategory} 
+        setActiveCategory={setActiveCategory} 
+        onStudioOpen={() => setShowStudio(true)}
+        isAdmin={isAdmin}
+      />
+      
+      {/* MINI PLAYER */}
+      {activeTrack && !immersiveMode && (
+        <MiniPlayer 
+          track={activeTrack} 
+          isPlaying={isPlaying} 
+          onToggle={togglePlay} 
+          onOpen={() => setImmersiveMode(true)}
+          getColorTheme={getColorTheme}
+        />
       )}
 
       {/* --- ПРОИГРЫВАТЕЛЬ (FULL SCREEN PLAYER) --- */}
       {activeTrack && (
-        <div className="fixed inset-0 z-[100] bg-[#0a0a0a] flex flex-col safe-area-bottom">
+        <div className="fixed inset-0 z-50 bg-[#0a0a0a] flex flex-col safe-area-bottom">
           {/* Strobe Flash Overlay */}
           {playerShowFlash && (
-             <div className="absolute inset-0 z-[150] bg-white pointer-events-none animate-[strobe-flash_0.15s_ease-out_forwards]" />
+             <div className="absolute inset-0 z-50 bg-white pointer-events-none animate-[strobe-flash_0.15s_ease-out_forwards]" />
           )}
 
           {/* DYNAMIC BACKGROUND */}
@@ -2412,7 +2476,7 @@ export default function MusicApp() {
 
                   </div>
                ) : (
-                 <p className="text-white/40 font-mono uppercase tracking-widest">No Lyrics Available</p>
+                 <p className="text-white/40 font-mono uppercase tracking-widest">Нет текста песни</p>
                )}
             </div>
           </div>
@@ -2482,6 +2546,84 @@ export default function MusicApp() {
 
         </div>
       )}
+
+      {/* --- PIN MODAL --- */}
+      {showPinModal && (
+        <PinModal onClose={() => setShowPinModal(false)} onSuccess={handlePinSuccess} />
+      )}
+
+      {/* --- STUDIO MODAL --- */}
+      {showStudio && (
+        <StudioModal
+          onClose={() => setShowStudio(false)}
+          onPublish={handlePublish}
+          existingTracks={tracks}
+          onEditTrack={async (track) => {
+            try {
+              const response = await fetch(`/api/tracks/${track.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ artist: track.artist, title: track.title })
+              });
+              if (!response.ok) throw new Error('Failed to update');
+              const updatedTrack = await response.json();
+              setTracks(prev => prev.map(t => t.id === updatedTrack.id ? { ...t, artist: updatedTrack.artist, title: updatedTrack.title } : t));
+            } catch (error) {
+              console.error('Error updating track:', error);
+              alert('Ошибка при обновлении');
+            }
+          }}
+          onDeleteTrack={async (trackId) => {
+            try {
+              const response = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
+              if (!response.ok) throw new Error('Failed to delete');
+              setTracks(prev => prev.filter(t => t.id !== trackId));
+              if (activeTrack?.id === trackId) {
+                setActiveTrack(null);
+                setIsPlaying(false);
+              }
+            } catch (error) {
+              console.error('Error deleting track:', error);
+              alert('Ошибка при удалении');
+            }
+          }}
+        />
+      )}
+
+      {/* EDIT TRACK MODAL */}
+      {isEditModalOpen && editingTrack && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-white">Редактировать трек</h2>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-white/40">Артист</label>
+                <input
+                  value={editingTrack?.artist || ''}
+                  onChange={e => setEditingTrack(prev => prev ? { ...prev, artist: e.target.value } : null)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-white/40">Название</label>
+                <input
+                  value={editingTrack?.title || ''}
+                  onChange={e => setEditingTrack(prev => prev ? { ...prev, title: e.target.value } : null)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>Отмена</Button>
+              <Button onClick={handleUpdateTrack}>Сохранить</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

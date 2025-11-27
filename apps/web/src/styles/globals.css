@@ -2660,3 +2660,20 @@ body:has([class*="music"]) .site-header,
 body:has([class*="music"]) .site-footer {
   display: none;
 }
+
+/* Ambient Background Animations */
+@keyframes blob {
+  0%, 100% { 
+    transform: translate(0, 0) scale(1); 
+  }
+  33% { 
+    transform: translate(5%, 8%) scale(1.05); 
+  }
+  66% { 
+    transform: translate(-3%, 4%) scale(0.98); 
+  }
+}
+
+.animate-blob {
+  animation: blob 20s ease-in-out infinite;
+}

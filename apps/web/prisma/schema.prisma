@@ -16,6 +16,7 @@ model Track {
   title     String
   color     String   // Gradient class name (e.g., "from-red-900 via-red-950 to-black")
   audioPath String   // Path to audio file (e.g., "/uploads/audio/track-123.mp3")
+  coverUrl  String?  // URL to cover image
   category  String   @default("yours")  // "yours" | "all"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
