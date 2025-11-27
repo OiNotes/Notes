@@ -90,7 +90,7 @@ class Pill {
     this.canvasHeight = h;
     this.reset();
   }
-  
+
   reset() {
     this.x = Math.random() * this.canvasWidth;
     this.y = Math.random() * -this.canvasHeight;
@@ -100,13 +100,13 @@ class Pill {
     this.speedY = Math.random() * 3 + 1;
     this.opacity = Math.random() * 0.6 + 0.2;
   }
-  
+
   update() {
     this.y += this.speedY;
     this.angle += this.rotationSpeed;
     if (this.y > this.canvasHeight + this.size) this.reset();
   }
-  
+
   draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -118,7 +118,7 @@ class Pill {
     ctx.lineTo(-this.size, this.size/2);
     ctx.arc(-this.size, 0, this.size/2, Math.PI/2, -Math.PI/2);
     ctx.closePath();
-    
+
     ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -131,90 +131,482 @@ class Pill {
   }
 }
 
+// --- SCREEN TEAR EFFECT ---
+class ScreenTear {
+  y: number = 0;
+  height: number = 0;
+  offsetX: number = 0;
+  life: number = 0;
+  maxLife: number = 0;
+  canvasWidth: number = 0;
+  canvasHeight: number = 0;
+  rgbOffset: number = 0;
+
+  constructor(w: number, h: number) {
+    this.canvasWidth = w;
+    this.canvasHeight = h;
+    this.reset();
+  }
+
+  reset() {
+    this.y = Math.random() * this.canvasHeight;
+    this.height = Math.random() * 30 + 10;
+    this.offsetX = (Math.random() - 0.5) * 40;
+    this.rgbOffset = Math.random() * 8 + 2;
+    this.maxLife = Math.random() * 20 + 10;
+    this.life = this.maxLife;
+  }
+
+  update() {
+    this.life--;
+    // Glitch movement
+    if (Math.random() > 0.7) {
+      this.offsetX += (Math.random() - 0.5) * 10;
+    }
+  }
+
+  isAlive() {
+    return this.life > 0;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    if (!this.isAlive()) return;
+
+    const alpha = this.life / this.maxLife;
+
+    try {
+      // Get image data for the tear region
+      const imageData = ctx.getImageData(0, this.y, this.canvasWidth, this.height);
+
+      // Apply chromatic aberration (RGB separation)
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const pixel = Math.floor(i / 4);
+        const x = pixel % this.canvasWidth;
+
+        // Shift red channel left
+        const redOffset = Math.min(Math.max(0, (x - this.rgbOffset) * 4), data.length - 4);
+        // Shift blue channel right
+        const blueOffset = Math.min(Math.max(0, (x + this.rgbOffset) * 4), data.length - 4);
+
+        if (redOffset >= 0 && blueOffset < data.length) {
+          data[i] = data[redOffset] || data[i]; // Red
+          data[i + 2] = data[blueOffset + 2] || data[i + 2]; // Blue
+        }
+      }
+
+      // Put displaced
+      ctx.putImageData(imageData, this.offsetX * alpha, this.y);
+
+      // Draw tear line
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, this.y);
+      ctx.lineTo(this.canvasWidth, this.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, this.y + this.height);
+      ctx.lineTo(this.canvasWidth, this.y + this.height);
+      ctx.stroke();
+    } catch (e) {
+      // Canvas security error, skip
+    }
+  }
+}
+
+// --- STITCH EFFECT (зашивание) ---
+class Stitch {
+  startX: number = 0;
+  startY: number = 0;
+  endX: number = 0;
+  endY: number = 0;
+  controlX: number = 0;
+  controlY: number = 0;
+  progress: number = 0;
+  duration: number = 0;
+  stitchCount: number = 0;
+
+  constructor(w: number, h: number) {
+    // Create stitch from edge to center
+    const side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+    const centerX = w / 2 + (Math.random() - 0.5) * 100;
+    const centerY = h / 2 + (Math.random() - 0.5) * 100;
+
+    switch(side) {
+      case 0: // top
+        this.startX = Math.random() * w;
+        this.startY = 0;
+        break;
+      case 1: // right
+        this.startX = w;
+        this.startY = Math.random() * h;
+        break;
+      case 2: // bottom
+        this.startX = Math.random() * w;
+        this.startY = h;
+        break;
+      case 3: // left
+        this.startX = 0;
+        this.startY = Math.random() * h;
+        break;
+    }
+
+    this.endX = centerX;
+    this.endY = centerY;
+    this.controlX = (this.startX + this.endX) / 2 + (Math.random() - 0.5) * 100;
+    this.controlY = (this.startY + this.endY) / 2 + (Math.random() - 0.5) * 100;
+    this.duration = 60 + Math.random() * 40;
+    this.progress = 0;
+    this.stitchCount = Math.floor(Math.random() * 8) + 5;
+  }
+
+  update() {
+    this.progress++;
+  }
+
+  isAlive() {
+    return this.progress < this.duration;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    const t = Math.min(this.progress / this.duration, 1);
+    const easeOut = 1 - Math.pow(1 - t, 3);
+
+    // Calculate current point on bezier
+    const currentX = Math.pow(1-easeOut,2)*this.startX + 2*(1-easeOut)*easeOut*this.controlX + Math.pow(easeOut,2)*this.endX;
+    const currentY = Math.pow(1-easeOut,2)*this.startY + 2*(1-easeOut)*easeOut*this.controlY + Math.pow(easeOut,2)*this.endY;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(180, 50, 50, ${0.8 - t * 0.5})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]); // Dashed line like stitches
+
+    ctx.beginPath();
+    ctx.moveTo(this.startX, this.startY);
+    ctx.quadraticCurveTo(this.controlX, this.controlY, currentX, currentY);
+    ctx.stroke();
+
+    // Draw stitch crosses along the line
+    ctx.setLineDash([]);
+    ctx.strokeStyle = `rgba(200, 80, 80, ${0.6 - t * 0.3})`;
+    ctx.lineWidth = 1.5;
+
+    const stitchesDrawn = Math.floor(this.stitchCount * easeOut);
+    for (let i = 0; i < stitchesDrawn; i++) {
+      const st = i / this.stitchCount;
+      const sx = Math.pow(1-st,2)*this.startX + 2*(1-st)*st*this.controlX + Math.pow(st,2)*this.endX;
+      const sy = Math.pow(1-st,2)*this.startY + 2*(1-st)*st*this.controlY + Math.pow(st,2)*this.endY;
+
+      // Cross stitch
+      ctx.beginPath();
+      ctx.moveTo(sx - 4, sy - 4);
+      ctx.lineTo(sx + 4, sy + 4);
+      ctx.moveTo(sx + 4, sy - 4);
+      ctx.lineTo(sx - 4, sy + 4);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+}
+
+// --- INK SPLATTER ---
+class InkDroplet {
+  x: number = 0;
+  y: number = 0;
+  targetX: number = 0;
+  targetY: number = 0;
+  size: number = 0;
+  progress: number = 0;
+  duration: number = 0;
+  opacity: number = 0;
+  color: string = '';
+
+  constructor(originX: number, originY: number) {
+    this.x = originX;
+    this.y = originY;
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.random() * 80 + 20;
+    this.targetX = originX + Math.cos(angle) * distance;
+    this.targetY = originY + Math.sin(angle) * distance;
+    this.size = Math.random() * 12 + 3;
+    this.duration = Math.random() * 40 + 30;
+    this.progress = 0;
+    this.opacity = Math.random() * 0.4 + 0.3;
+    // Dark colors: black, dark red, dark purple
+    const colors = ['rgba(20, 20, 20,', 'rgba(60, 10, 10,', 'rgba(30, 10, 40,'];
+    this.color = colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  update() {
+    this.progress++;
+  }
+
+  isAlive() {
+    return this.progress < this.duration;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    const t = Math.min(this.progress / this.duration, 1);
+    const easeOut = 1 - Math.pow(1 - t, 2);
+
+    const currentX = this.x + (this.targetX - this.x) * easeOut;
+    const currentY = this.y + (this.targetY - this.y) * easeOut;
+    const currentSize = this.size * (1 + easeOut * 0.5);
+    const alpha = this.opacity * (1 - t * 0.7);
+
+    // Draw ink blob with gradient
+    const gradient = ctx.createRadialGradient(currentX, currentY, 0, currentX, currentY, currentSize);
+    gradient.addColorStop(0, `${this.color} ${alpha})`);
+    gradient.addColorStop(0.6, `${this.color} ${alpha * 0.5})`);
+    gradient.addColorStop(1, `${this.color} 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(currentX, currentY, currentSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+class InkSplatter {
+  droplets: InkDroplet[] = [];
+
+  spawn(x: number, y: number, count: number = 12) {
+    for (let i = 0; i < count; i++) {
+      this.droplets.push(new InkDroplet(x, y));
+    }
+  }
+
+  update() {
+    this.droplets.forEach(d => d.update());
+    this.droplets = this.droplets.filter(d => d.isAlive());
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    this.droplets.forEach(d => d.draw(ctx));
+  }
+}
+
 class PendulumClock {
   centerX: number = 0;
   centerY: number = 0;
   radius: number = 0;
   pendulumLength: number = 0;
-  pendulumAngle: number = 0;
-  tickTockState: number = 0;
+  
+  // Pendulum Physics (Smooth & Heavy)
+  angle: number = Math.PI / 4;
+  angularVelocity: number = 0;
+  angularAcceleration: number = 0;
+  gravity: number = 0.0025; 
+  damping: number = 0.995; 
+
+  // Hand Physics (Broken/Chaotic)
+  hourAngle: number = 0;
+  minuteAngle: number = 0;
+  handState: 'STILL' | 'CRAWL' | 'SPIN' | 'TWITCH' | 'REVERSE' = 'CRAWL';
+  handTimer: number = 0;
+
+  // Horror / Glitch State
+  time: number = 0;
+  visibility: number = 1; // 0 to 1
+  glitchOffsetX: number = 0;
+  glitchOffsetY: number = 0;
+  isBroken: boolean = false;
 
   resize(w: number, h: number) {
     this.centerX = w / 2;
-    this.centerY = h / 3;
-    this.radius = Math.min(w, h) * 0.15;
-    this.pendulumLength = this.radius * 2.5;
+    this.centerY = h * 0.3; // Clock face visible at top 30%
+    this.radius = Math.min(w, h) * 0.12; // Smaller clock face
+    this.pendulumLength = h * 0.5; // Hangs down
   }
-  
+
   update(isTickTock: boolean) {
-    if (isTickTock) {
-      this.pendulumAngle = Math.sin(Date.now() / 500) * (Math.PI / 6);
-      if (Math.random() > 0.8) {
-        this.tickTockState = this.tickTockState === 0 ? 1 : 0;
-      }
+    this.time++;
+
+    // --- 1. Pendulum Physics (Always Smooth & Heavy) ---
+    this.angularAcceleration = -this.gravity * Math.sin(this.angle);
+    this.angularVelocity += this.angularAcceleration;
+    this.angularVelocity *= this.damping;
+    this.angle += this.angularVelocity;
+
+    // --- 2. Hands Chaos Engine ---
+    this.handTimer--;
+    if (this.handTimer <= 0) {
+      // Change behavior randomly
+      const rand = Math.random();
+      if (rand < 0.4) this.handState = 'CRAWL';
+      else if (rand < 0.6) this.handState = 'TWITCH';
+      else if (rand < 0.8) this.handState = 'SPIN';
+      else if (rand < 0.9) this.handState = 'STILL';
+      else this.handState = 'REVERSE';
+      
+      this.handTimer = Math.random() * 60 + 10; // Duration of state
+    }
+
+    // Execute Hand Behavior
+    const speedMult = isTickTock ? 3 : 1;
+
+    switch (this.handState) {
+      case 'CRAWL':
+        this.minuteAngle += 0.005 * speedMult;
+        this.hourAngle += 0.0005 * speedMult;
+        break;
+      case 'SPIN':
+        this.minuteAngle += 0.3 * speedMult;
+        this.hourAngle -= 0.1 * speedMult; // Counter-rotate
+        break;
+      case 'TWITCH':
+        if (this.time % 5 === 0) {
+           this.minuteAngle += (Math.random() - 0.5) * 0.5;
+           this.hourAngle += (Math.random() - 0.5) * 0.5;
+        }
+        break;
+      case 'REVERSE':
+        this.minuteAngle -= 0.05 * speedMult;
+        this.hourAngle -= 0.01 * speedMult;
+        break;
+      case 'STILL':
+        // Do nothing, uncanny stillness
+        break;
+    }
+
+    // --- 3. Visibility Strobe (The "Horror Movie" flicker) ---
+    // Base visibility is high, but dips to 0 randomly
+    if (isTickTock || Math.random() > 0.98) {
+        if (Math.random() > 0.7) {
+           this.visibility = 0; // Disappear
+        } else if (Math.random() > 0.7) {
+           this.visibility = Math.random(); // Flicker
+        } else {
+           this.visibility = 1;
+        }
+        
+        // Position Glitch (Jitter)
+        if (Math.random() > 0.8) {
+            this.glitchOffsetX = (Math.random() - 0.5) * 20;
+            this.glitchOffsetY = (Math.random() - 0.5) * 20;
+        } else {
+            this.glitchOffsetX = 0;
+            this.glitchOffsetY = 0;
+        }
     } else {
-      this.pendulumAngle = Math.sin(Date.now() / 1000) * (Math.PI / 8);
+        // Calm state - slowly fade back to visible
+        if (this.visibility < 1) this.visibility += 0.05;
+        this.glitchOffsetX = 0;
+        this.glitchOffsetY = 0;
     }
   }
-  
-  draw(ctx: CanvasRenderingContext2D, isTickTock: boolean) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2;
 
-    // Clock Face
+  draw(ctx: CanvasRenderingContext2D, isTickTock: boolean) {
+    if (this.visibility < 0.05) return; // Invisible
+
+    ctx.save();
+    ctx.translate(this.centerX + this.glitchOffsetX, this.centerY + this.glitchOffsetY);
+    ctx.globalAlpha = this.visibility;
+
+    // 1. Draw Pendulum (Hanging from clock)
+    const bobX = Math.sin(this.angle) * this.pendulumLength;
+    const bobY = Math.cos(this.angle) * this.pendulumLength;
+    
+    // Pendulum Rod (Thin, barely visible wire)
     ctx.beginPath();
-    ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2);
+    ctx.moveTo(0, this.radius); // Start from bottom of clock
+    ctx.lineTo(bobX, bobY);
+    ctx.strokeStyle = 'rgba(80, 80, 80, 0.6)';
+    ctx.lineWidth = 1;
     ctx.stroke();
+
+    // Pendulum Blade (The menace)
+    ctx.save();
+    ctx.translate(bobX, bobY);
+    ctx.rotate(this.angle);
+    
+    // Draw Blade
+    const bladeW = this.radius * 1.5;
+    const bladeH = bladeW * 0.8;
     
     ctx.beginPath();
-    ctx.arc(this.centerX, this.centerY, 3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.moveTo(-bladeW/2, 0);
+    // Crescent shape
+    ctx.bezierCurveTo(-bladeW/2, bladeH, bladeW/2, bladeH, bladeW/2, 0);
+    ctx.bezierCurveTo(bladeW/3, bladeH * 0.6, -bladeW/3, bladeH * 0.6, -bladeW/2, 0);
+    
+    const bladeGrad = ctx.createLinearGradient(-bladeW/2, 0, bladeW/2, 0);
+    bladeGrad.addColorStop(0, '#000');
+    bladeGrad.addColorStop(0.5, '#333');
+    bladeGrad.addColorStop(1, '#000');
+    ctx.fillStyle = bladeGrad;
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 15;
+    ctx.fill();
+    
+    // Sharp edge
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#555';
+    ctx.stroke();
+    ctx.restore();
+
+
+    // 2. Draw Clock Face (Distressed)
+    // Main circle
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#050505'; // Almost black
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Roman Numerals (Roughly drawn)
+    ctx.font = `${this.radius * 0.2}px "Times New Roman", serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#666';
+    const numerals = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+    numerals.forEach((num, i) => {
+        const ang = (i * Math.PI * 2) / 12 - Math.PI / 2;
+        const r = this.radius * 0.8;
+        ctx.fillText(num, Math.cos(ang) * r, Math.sin(ang) * r);
+    });
+
+    // 3. Draw Hands (The Madness)
+    // Hour Hand
+    this.drawHand(ctx, this.radius * 0.5, this.hourAngle, 4, '#444');
+    // Minute Hand
+    this.drawHand(ctx, this.radius * 0.8, this.minuteAngle, 2, '#888');
+    
+    // Center Pin
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#a00'; // Blood red pin
     ctx.fill();
 
-    const minuteHandAngle = this.tickTockState === 0 ? Math.PI * 1.5 : Math.PI * 1.7;
-    const hourHandAngle = this.tickTockState === 0 ? Math.PI * 0.5 : Math.PI * 0.7;
-    this.drawHand(ctx, this.centerX, this.centerY, this.radius * 0.8, minuteHandAngle, 2);
-    this.drawHand(ctx, this.centerX, this.centerY, this.radius * 0.5, hourHandAngle, 3);
-
-    const pendulumX = this.centerX + Math.sin(this.pendulumAngle) * this.pendulumLength;
-    const pendulumY = this.centerY + Math.cos(this.pendulumAngle) * this.pendulumLength;
-    
-    ctx.beginPath();
-    ctx.moveTo(this.centerX, this.centerY + this.radius);
-    for(let i=0; i<5; i++) {
-       ctx.lineTo(this.centerX + (Math.random()-0.5)*5, this.centerY + this.radius + (this.pendulumLength/5)*i);
-    }
-    ctx.lineTo(pendulumX, pendulumY);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(pendulumX, pendulumY, this.radius * 0.2, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    for(let i=0; i<10; i++) {
-         ctx.beginPath();
-         ctx.moveTo(pendulumX + (Math.random()-0.5)*this.radius*0.4, pendulumY + (Math.random()-0.5)*this.radius*0.4);
-         ctx.lineTo(pendulumX + (Math.random()-0.5)*this.radius*0.4, pendulumY + (Math.random()-0.5)*this.radius*0.4);
-         ctx.stroke();
+    // 4. Ghosting / Double Vision Effect (If glitching)
+    if (this.glitchOffsetX !== 0) {
+       ctx.globalCompositeOperation = 'screen';
+       ctx.globalAlpha = 0.3;
+       ctx.drawImage(ctx.canvas, -this.centerX + 10, -this.centerY, ctx.canvas.width, ctx.canvas.height);
+       ctx.globalCompositeOperation = 'source-over';
     }
 
     ctx.restore();
   }
 
-  drawHand(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, angle: number, width: number) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    for(let i=0; i<5; i++) {
-       ctx.lineTo((length/5)*i, (Math.random()-0.5)*width*2);
-    }
-    ctx.lineTo(length, 0);
-    ctx.lineWidth = width;
-    ctx.stroke();
-    ctx.restore();
+  drawHand(ctx: CanvasRenderingContext2D, length: number, angle: number, width: number, color: string) {
+      ctx.save();
+      ctx.rotate(angle);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      // Distorted hand line
+      ctx.lineTo(length, 0);
+      ctx.stroke();
+      
+      ctx.restore();
   }
 }
 
@@ -225,18 +617,38 @@ const formatTime = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Keyword triggers for effects
+const TEAR_WORDS = ['strange', 'infatuation', 'imagination', 'correlation', 'saturation', 'over'];
+const STITCH_WORDS = ['take', 'side', 'by your', 'your side'];
+const INK_WORDS = ['lies', 'skin', 'hide', 'unclean', 'pack', 'breeds'];
+const FLASH_WORDS = ['tick', 'tock', 'nothing', 'libertine', 'spleen'];
+
 export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlaying, onTogglePlay, onSeek, onClose }: PlaceboVisualizerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [lyricLine, setLyricLine] = useState<{ en: string, ru: string, isTickTock?: boolean, isExplosion?: boolean, isFall?: boolean }>({ en: '', ru: '' });
+  const [lyricLine, setLyricLine] = useState<{
+    en: string;
+    ru: string;
+    isTickTock?: boolean;
+    isExplosion?: boolean;
+    isFall?: boolean;
+    isTear?: boolean;
+    isStitch?: boolean;
+    isInk?: boolean;
+  }>({ en: '', ru: '' });
   const [flashIntensity, setFlashIntensity] = useState(0);
   const [showClock, setShowClock] = useState(false);
   const [showPills, setShowPills] = useState(false);
   const requestRef = useRef<number>();
-  
+  const prevLyricRef = useRef<string>('');
+
   // Effect references
   const scratchesRef = useRef<Scratch[]>([]);
   const pillsRef = useRef<Pill[]>([]);
   const clockRef = useRef<PendulumClock>(new PendulumClock());
+  // NEW effect refs
+  const tearsRef = useRef<ScreenTear[]>([]);
+  const stitchesRef = useRef<Stitch[]>([]);
+  const inkSplatterRef = useRef<InkSplatter>(new InkSplatter());
 
   // --- LYRIC SYNC ENGINE ---
   useEffect(() => {
@@ -286,14 +698,58 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       const isExplosion = lowerEn.includes('unclean') || lowerEn.includes('libertine') || lowerEn.includes('spleen');
       const isFall = lowerEn.includes('fall') || lowerEn.includes('nothing');
 
-      setLyricLine({ en, ru, isTickTock, isExplosion, isFall });
-      
+      // NEW keyword detection
+      const isTear = TEAR_WORDS.some(word => lowerEn.includes(word));
+      const isStitch = STITCH_WORDS.some(word => lowerEn.includes(word));
+      const isInk = INK_WORDS.some(word => lowerEn.includes(word));
+      const shouldFlash = FLASH_WORDS.some(word => lowerEn.includes(word));
+
+      setLyricLine({ en, ru, isTickTock, isExplosion, isFall, isTear, isStitch, isInk });
+
       setShowClock(!!isTickTock);
       setShowPills(!!isExplosion);
-      
-      // Trigger Flash on specific beats (only once per line change ideally, but simple here is fine)
-      if ((isTickTock || isExplosion) && lyricLine.en !== en) {
+
+      // Spawn effects on line change
+      const isNewLine = prevLyricRef.current !== en;
+      if (isNewLine) {
+        prevLyricRef.current = en;
+        const canvas = canvasRef.current;
+
+        // Spawn TEAR effects (screen rips)
+        if (isTear && canvas) {
+          // Add 1-2 screen tears
+          const tearCount = Math.floor(Math.random() * 2) + 1;
+          for (let i = 0; i < tearCount; i++) {
+            if (tearsRef.current.length < 3) { // Limit
+              tearsRef.current.push(new ScreenTear(canvas.width, canvas.height));
+            }
+          }
+          setFlashIntensity(0.5);
+        }
+
+        // Spawn STITCH effects (healing/sewing)
+        if (isStitch && canvas) {
+          const stitchCount = Math.floor(Math.random() * 3) + 2;
+          for (let i = 0; i < stitchCount; i++) {
+            if (stitchesRef.current.length < 8) { // Limit
+              stitchesRef.current.push(new Stitch(canvas.width, canvas.height));
+            }
+          }
+          setFlashIntensity(0.3); // Softer flash for stitch
+        }
+
+        // Spawn INK splatter
+        if (isInk && canvas) {
+          const x = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.6;
+          const y = canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.4;
+          inkSplatterRef.current.spawn(x, y, 15);
+          setFlashIntensity(0.4);
+        }
+
+        // Flash for emphasis words
+        if (shouldFlash || isTickTock || isExplosion) {
           setFlashIntensity(0.8);
+        }
       }
 
     } else {
@@ -352,6 +808,26 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
         s.update();
         s.draw(ctx);
       });
+
+      // --- NEW EFFECTS ---
+
+      // Screen Tears (update and draw, remove dead ones)
+      tearsRef.current.forEach(tear => {
+        tear.update();
+        tear.draw(ctx);
+      });
+      tearsRef.current = tearsRef.current.filter(t => t.isAlive());
+
+      // Stitches (update and draw, remove dead ones)
+      stitchesRef.current.forEach(stitch => {
+        stitch.update();
+        stitch.draw(ctx);
+      });
+      stitchesRef.current = stitchesRef.current.filter(s => s.isAlive());
+
+      // Ink Splatter
+      inkSplatterRef.current.update();
+      inkSplatterRef.current.draw(ctx);
 
       // Static (Noise)
       for (let i = 0; i < 3000; i++) {
