@@ -18,7 +18,7 @@ import {
   Save,
   MoreVertical
 } from 'lucide-react';
-import { Play, Pause, RotateCcw, SkipBack, SkipForward, Zap } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipBack, SkipForward, Zap, MoreHorizontal } from 'lucide-react';
 
 // --- TYPES ---
 type Track = {
@@ -710,8 +710,8 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
     return () => window.removeEventListener('keydown', handleStrobeKey);
   }, [handleStrobeKey]);
 
-  // --- AUDIO CONTROL ---
-  const togglePlay = () => {
+  // --- AUDIO CONTROL (Workshop) ---
+  const toggleWorkshopPlay = () => {
     if (!audioRef.current) return;
     if (audioRef.current.paused) audioRef.current.play();
     else audioRef.current.pause();
@@ -1118,7 +1118,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={togglePlay} className="w-12 px-0 justify-center">
+                <Button variant="secondary" onClick={toggleWorkshopPlay} className="w-12 px-0 justify-center">
                   {isPlaying ? (
                     <Pause fill="currentColor" className="w-5 h-5" />
                   ) : (
@@ -1209,7 +1209,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                     <button onClick={() => skip(-5)} className="hover:text-white">
                       <SkipBack className="w-6 h-6" fill="currentColor" />
                     </button>
-                    <button onClick={togglePlay} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
+                    <button onClick={toggleWorkshopPlay} className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
                       {isPlaying ? (
                         <Pause fill="currentColor" className="w-5 h-5" />
                       ) : (
@@ -1384,7 +1384,7 @@ const StudioModal = ({ onClose, onPublish, existingTracks, onEditTrack, onDelete
                 <button onClick={() => skip(-5)} className="text-white/40 hover:text-white">
                   <SkipBack className="w-6 h-6" fill="currentColor" />
                 </button>
-                <button onClick={togglePlay} className="w-12 h-12 bg-yellow-500 text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
+                <button onClick={toggleWorkshopPlay} className="w-12 h-12 bg-yellow-500 text-black rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
                   {isPlaying ? (
                     <Pause fill="currentColor" className="w-5 h-5" />
                   ) : (
@@ -1564,6 +1564,7 @@ export default function MusicApp() {
   const [playerShowFlash, setPlayerShowFlash] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const [isClimax, setIsClimax] = useState(false); // New State for "Drrr-drrr" ending
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('yours');
   
   // --- AUDIO ANALYSIS STATE ---
@@ -1987,51 +1988,44 @@ export default function MusicApp() {
     }
   };
 
-  const togglePlay = async () => {
-    console.log('[MusicApp] Toggle Play');
-    
-    // Initialize Audio Engine on first user interaction (browser policy)
+  const toggleMainPlay = async () => {
+    console.log('[MusicApp] Toggle Main Play');
+
+    // Ensure audio engine is ready
     if (!audioContextRef.current) {
-        initAudioAnalyzer();
+      initAudioAnalyzer();
     }
     if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume();
+      audioContextRef.current.resume();
     }
 
-    if (isPlaying || isTonearmMoving) {
-      // STOP SEQUENCE
-      setIsPlaying(false);
-      setIsTonearmMoving(false);
-      setImmersiveMode(false);
-      setCurrentLyricIndex(0); // Reset lyrics
+    // If playing -> stop and exit player
+    if (isPlaying) {
+      handleClosePlayer();
+      return;
+    }
 
-      // Stop audio if playing
-      if (mainAudioRef.current) {
-        mainAudioRef.current.pause();
-        mainAudioRef.current.currentTime = 0; // Reset audio
-      }
-    } else {
-      // START SEQUENCE
-      // Reset state before starting
-      setCurrentLyricIndex(0);
-      if (mainAudioRef.current) mainAudioRef.current.currentTime = 0;
+    // Start sequence with tonearm pause
+    setIsTonearmMoving(true);
+    setImmersiveMode(true);
+    setCurrentLyricIndex(0);
+    if (mainAudioRef.current) {
+      mainAudioRef.current.currentTime = 0;
+    }
 
-      // 1. Tonearm moves (2s)
-      setIsTonearmMoving(true);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-      // 2. Vinyl starts spinning
-      setIsPlaying(true);
-
-      // 3. Fade to immersive mode (1s)
-      setImmersiveMode(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 4. Start real audio
-      if (mainAudioRef.current) {
-        mainAudioRef.current.play().catch(e => console.error("Playback failed:", e));
+    if (mainAudioRef.current) {
+      try {
+        await mainAudioRef.current.play();
+        setIsPlaying(true);
+      } catch (e) {
+        console.error("Playback failed:", e);
+        setIsPlaying(false);
       }
     }
+
+    setTimeout(() => setIsTonearmMoving(false), 500);
   };
 
   useEffect(() => {
@@ -2208,6 +2202,15 @@ export default function MusicApp() {
     }
   };
 
+  const handleScrub = (clientX: number) => {
+    if (!mainAudioRef.current || !progressBarRef.current || duration <= 0) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+    const newTime = percent * (mainAudioRef.current.duration || duration);
+    mainAudioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
   return (
     <div className="relative h-full w-full bg-[#050505] text-white font-sans selection:bg-amber-500 selection:text-black flex flex-col overflow-hidden">
       <style jsx global>{`
@@ -2218,6 +2221,7 @@ export default function MusicApp() {
           letter-spacing: -0.02em;
         }
         .font-sans { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Fraunces', Georgia, serif; }
 
         .animate-spin-slow { animation: spin 6s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -2311,6 +2315,26 @@ export default function MusicApp() {
         .animate-fade-in-delayed {
           animation: fade-in-delayed 1s ease-out forwards;
         }
+
+        /* Meshy ambient drift for player background */
+        @keyframes mesh-drift {
+          0% { transform: translate3d(0,0,0) scale(1); }
+          50% { transform: translate3d(6%, -4%, 0) scale(1.06); }
+          100% { transform: translate3d(0,0,0) scale(1); }
+        }
+        @keyframes mesh-pulse {
+          0% { transform: translate3d(0,0,0) scale(1); opacity: 0.35; }
+          40% { transform: translate3d(-4%, 5%, 0) scale(1.08); opacity: 0.5; }
+          100% { transform: translate3d(0,0,0) scale(1); opacity: 0.35; }
+        }
+        @keyframes mesh-glow {
+          0% { transform: translate3d(0,0,0) scale(1); opacity: 0.22; }
+          50% { transform: translate3d(3%, -6%, 0) scale(1.04); opacity: 0.4; }
+          100% { transform: translate3d(0,0,0) scale(1); opacity: 0.22; }
+        }
+        .mesh-drift { animation: mesh-drift 16s ease-in-out infinite; }
+        .mesh-pulse { animation: mesh-pulse 18s ease-in-out infinite; }
+        .mesh-glow { animation: mesh-glow 20s ease-in-out infinite; }
       `}</style>
 
       {/* HIDDEN AUDIO FOR MAIN PLAYER */}
@@ -2384,7 +2408,7 @@ export default function MusicApp() {
         <MiniPlayer 
           track={activeTrack} 
           isPlaying={isPlaying} 
-          onToggle={togglePlay} 
+          onToggle={toggleMainPlay} 
           onOpen={() => setImmersiveMode(true)}
           getColorTheme={getColorTheme}
         />
@@ -2392,155 +2416,167 @@ export default function MusicApp() {
 
       {/* --- ПРОИГРЫВАТЕЛЬ (FULL SCREEN PLAYER) --- */}
       {activeTrack && (
-        <div className="fixed inset-0 z-50 bg-[#0a0a0a] flex flex-col safe-area-bottom">
+        <div className="fixed inset-0 z-50 bg-[#0a0a0a] overflow-hidden safe-area-bottom flex items-stretch justify-center">
           {/* Strobe Flash Overlay */}
           {playerShowFlash && (
              <div className="absolute inset-0 z-50 bg-white pointer-events-none animate-[strobe-flash_0.15s_ease-out_forwards]" />
           )}
 
-          {/* DYNAMIC BACKGROUND */}
-          {(() => {
-            const theme = getColorTheme(activeTrack.color);
-            return (
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-[#0a0a0a]" />
-                <div
-                  className="absolute -top-[20%] -left-[20%] w-[140%] h-[140%] opacity-40 blur-[80px] sm:blur-[120px]"
-                  style={{
-                    background: `radial-gradient(circle at 50% 30%, ${theme.primary}, transparent 60%), radial-gradient(circle at 80% 80%, ${theme.secondary}, transparent 60%)`,
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl" />
+          {/* Background Grain + Dynamic Mesh Glow */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <div
+              className="absolute inset-0 opacity-[0.03]"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+            />
+            {(() => {
+              const theme = getColorTheme(activeTrack.color);
+              return (
+                <div className="absolute inset-0 overflow-hidden">
+                  <div
+                    className={`absolute -top-16 -left-24 w-[70%] h-[70%] rounded-full blur-[130px] mix-blend-screen mesh-drift ${isPlaying ? 'opacity-60' : 'opacity-30'}`}
+                    style={{ background: theme.primary }}
+                  />
+                  <div
+                    className={`absolute bottom-[-12%] right-[-8%] w-[60%] h-[60%] rounded-full blur-[120px] mix-blend-screen mesh-pulse ${isPlaying ? 'opacity-55' : 'opacity-25'}`}
+                    style={{ background: theme.secondary }}
+                  />
+                  <div
+                    className={`absolute top-1/3 left-1/2 -translate-x-1/2 w-[55%] h-[55%] rounded-full blur-[110px] mix-blend-screen mesh-glow ${isPlaying ? 'opacity-45' : 'opacity-20'}`}
+                    style={{ background: theme.accent }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Main Layout */}
+          <div className="relative z-10 flex flex-col h-full w-full max-w-6xl px-4 sm:px-8 lg:px-12 py-4 sm:py-6 md:py-10">
+
+            {/* Header */}
+            <header className="flex justify-between items-center mb-2 sm:mb-4 transition-all duration-500 opacity-80 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+              <button
+                onClick={handleClosePlayer}
+                className="p-2 hover:bg-white/5 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-300" />
+              </button>
+              <div className="text-xs font-mono tracking-[0.2em] uppercase text-gray-500">Now Playing</div>
+              <button
+                onClick={() => setImmersiveMode(!immersiveMode)}
+                className="p-2 hover:bg-white/5 rounded-full transition-colors"
+              >
+                <MoreHorizontal className="w-6 h-6 text-gray-300" />
+              </button>
+            </header>
+
+            {/* Main Content Area */}
+            <main className="flex-1 flex items-center justify-center py-2 sm:py-6 relative min-h-0">
+              {/* 1. VINYL VIEW */}
+              <div className={`w-full max-w-[280px] sm:max-w-[360px] md:max-w-[420px] aspect-square transition-all duration-500 ease-out
+                 ${immersiveMode ? 'opacity-0 scale-90 pointer-events-none absolute' : 'opacity-100 scale-100'}`}>
+                 <Turntable track={activeTrack} isPlaying={isPlaying} isTonearmMoving={isTonearmMoving} />
               </div>
-            );
-          })()}
 
-          {/* TOP BAR: Swipe Handle & Modes - Fade out in immersive mode */}
-          <div className={`relative z-50 flex items-center justify-between px-6 pt-12 pb-4 shrink-0 transition-all duration-500
-            ${immersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-             <button
-               onClick={handleClosePlayer}
-               className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 text-white/60 transition-colors"
-             >
-               <ChevronDown size={24} />
-             </button>
-
-             {/* Swipe Handle Visual */}
-             <div className="absolute top-4 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/20 rounded-full" />
-
-             {/* Toggle Vinyl/Lyrics Mode */}
-             <button
-               onClick={() => setImmersiveMode(!immersiveMode)}
-               className="px-4 py-2 rounded-full text-xs font-bold tracking-widest uppercase bg-black/30 backdrop-blur-md text-white/80 border border-white/10 transition-all hover:bg-black/50"
-             >
-               {immersiveMode ? 'Lyrics' : 'Vinyl'}
-             </button>
-          </div>
-
-
-          {/* MAIN CONTENT AREA (Flex Grow) */}
-          <div className="relative flex-1 w-full overflow-hidden flex flex-col items-center justify-center p-4 sm:p-8">
-            
-            {/* 1. VINYL VIEW */}
-            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out
-               ${immersiveMode ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}>
-               <div className="w-full max-w-[320px] sm:max-w-[400px] aspect-square">
-                  <Turntable track={activeTrack} isPlaying={isPlaying} isTonearmMoving={isTonearmMoving} />
-               </div>
-            </div>
-
-            {/* 2. LYRICS VIEW (A$AP Style) */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center px-4 sm:px-8 text-center transition-all duration-500
-               ${immersiveMode ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}>
-                
-               {activeTrack.lyrics.length > 0 ? (
-                  <div className="w-full max-w-5xl flex flex-col items-center justify-center min-h-[300px] relative">
-                    
-                    {/* Current Line - Main Focus (Russian only) */}
-                    <div
-                      key={currentLyricIndex}
-                      className="flex flex-col items-center animate-lyric-crossfade z-10"
-                    >
-                       <h2
-                         className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold font-lyrics text-white leading-tight uppercase tracking-tight text-balance drop-shadow-2xl"
-                         style={{ textShadow: '0 0 30px rgba(251, 191, 36, 0.3)' }}
-                       >
-                         {(() => {
-                           const lyric = activeTrack.lyrics[currentLyricIndex];
-                           if (!lyric) return '...';
-                           if (typeof lyric === 'string') return lyric;
-                           return lyric.translation || lyric.original || '...';
-                         })()}
-                       </h2>
+              {/* 2. LYRICS VIEW */}
+              <div className={`absolute inset-0 flex flex-col items-center justify-center px-4 text-center transition-all duration-500
+                 ${immersiveMode ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}>
+                 {activeTrack.lyrics.length > 0 ? (
+                    <div className="w-full flex flex-col items-center justify-center min-h-[200px]">
+                       <div key={currentLyricIndex} className="animate-lyric-crossfade">
+                          <h2
+                            className="text-2xl sm:text-4xl md:text-5xl font-extrabold font-lyrics text-white leading-tight uppercase tracking-tight text-balance"
+                            style={{ textShadow: '0 0 30px rgba(251, 191, 36, 0.3)' }}
+                          >
+                            {(() => {
+                              const lyric = activeTrack.lyrics[currentLyricIndex];
+                              if (!lyric) return '...';
+                              if (typeof lyric === 'string') return lyric;
+                              return lyric.translation || lyric.original || '...';
+                            })()}
+                          </h2>
+                       </div>
                     </div>
+                 ) : (
+                   <p className="text-white/40 font-mono uppercase tracking-widest">Нет текста песни</p>
+                 )}
+              </div>
+            </main>
 
-                  </div>
-               ) : (
-                 <p className="text-white/40 font-mono uppercase tracking-widest">Нет текста песни</p>
-               )}
-            </div>
-          </div>
+            {/* Bottom Controls */}
+            <div className={`mt-auto space-y-6 transition-all duration-500 ${immersiveMode ? 'opacity-60' : ''} pb-[calc(env(safe-area-inset-bottom,0px)+12px)]`}>
 
+              {/* Song Title & Artist */}
+              <div className={`space-y-1 transition-all duration-300 ${immersiveMode ? 'opacity-0 h-0 overflow-hidden' : ''}`}>
+                <h1 className="text-2xl font-serif font-medium tracking-wide text-white leading-tight line-clamp-1">
+                  {activeTrack.title}
+                </h1>
+                <p className="text-lg text-gray-500 font-light">{activeTrack.artist}</p>
+              </div>
 
-          {/* BOTTOM CONTROLS - Minimal in immersive mode */}
-          <div className={`relative z-50 w-full px-6 pb-8 pt-2 sm:pb-12 transition-all duration-500
-            ${immersiveMode ? 'bg-transparent' : 'bg-gradient-to-t from-black/90 via-black/60 to-transparent space-y-6'}`}>
-
-            {/* Track Info - Hide in immersive mode */}
-            <div className={`flex flex-col items-start space-y-1 transition-all duration-300
-              ${immersiveMode ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-              <h2 className="text-2xl font-bold text-white leading-none line-clamp-1">{activeTrack.title}</h2>
-              <p className="text-lg text-white/50 leading-none">{activeTrack.artist}</p>
-            </div>
-
-            {/* Scrubber - Always visible but minimal in immersive */}
-            <div className={`w-full group cursor-pointer transition-all duration-300 ${immersiveMode ? 'py-1' : 'py-2'}`}>
-               <div className={`w-full bg-white/20 rounded-full overflow-hidden relative transition-all duration-300
-                 ${immersiveMode ? 'h-0.5' : 'h-1'}`}>
-                 <div
-                   className="h-full bg-white/90 rounded-full relative"
-                   style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-                 />
-               </div>
-               <div className={`flex justify-between text-[10px] font-medium text-white/30 mt-1.5 font-mono uppercase tracking-wider transition-all duration-300
-                 ${immersiveMode ? 'opacity-0 h-0' : 'opacity-100'}`}>
+              {/* Progress Bar */}
+              <div className="w-full space-y-2 group">
+                <div
+                  ref={progressBarRef}
+                  className={`relative w-full bg-[#222] rounded-full overflow-hidden cursor-pointer transition-all ${immersiveMode ? 'h-0.5' : 'h-1'}`}
+                  onClick={(e) => handleScrub(e.clientX)}
+                  onTouchStart={(e) => {
+                    if (e.touches[0]) handleScrub(e.touches[0].clientX);
+                  }}
+                  onTouchMove={(e) => {
+                    if (e.touches[0]) handleScrub(e.touches[0].clientX);
+                  }}
+                >
+                  <div
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-linear"
+                    style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                  />
+                </div>
+                <div className={`flex justify-between text-[10px] font-mono text-gray-600 tracking-wider transition-all duration-300 ${immersiveMode ? 'opacity-0 h-0' : ''}`}>
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
-               </div>
-            </div>
+                </div>
+              </div>
 
-            {/* Main Controls - Only Play button in immersive mode */}
-            <div className={`flex items-center justify-center transition-all duration-300 ${immersiveMode ? 'gap-0 mt-2' : 'gap-12 sm:gap-16'}`}>
-               {/* Prev - Hide in immersive */}
-               <button
-                  onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime -= 10; }}
-                  className={`p-4 text-white hover:text-white/80 active:scale-90 transition-all
-                    ${immersiveMode ? 'opacity-0 w-0 p-0 pointer-events-none' : 'opacity-100'}`}
-               >
-                  <SkipBack size={32} fill="currentColor" />
-               </button>
+              {/* Playback Controls */}
+              <div className={`flex items-center justify-center pb-4 ${immersiveMode ? 'gap-0' : 'gap-8'}`}>
+                 {/* Skip Back */}
+                 <button
+                   onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime -= 10; }}
+                   className={`text-gray-400 hover:text-white transition-colors active:scale-95 ${immersiveMode ? 'opacity-0 w-0 pointer-events-none' : ''}`}
+                 >
+                   <SkipBack className="w-8 h-8" />
+                 </button>
 
-               {/* Play/Pause - Smaller in immersive mode */}
-               <button
-                  onClick={togglePlay}
-                  className={`flex items-center justify-center rounded-full bg-white/90 text-black shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all duration-300
-                    ${immersiveMode ? 'w-14 h-14' : 'w-20 h-20'}`}
-               >
-                  {isPlaying ? (
-                    <Pause size={immersiveMode ? 24 : 36} fill="#000" stroke="#000" strokeWidth={1} />
-                  ) : (
-                    <Play size={immersiveMode ? 24 : 36} fill="#000" stroke="#000" strokeWidth={1} className="ml-0.5" />
-                  )}
-               </button>
+                 {/* Play/Pause */}
+                 <button
+                  onClick={toggleMainPlay}
+                  className={`bg-white rounded-full flex items-center justify-center text-black shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all duration-300
+                    ${immersiveMode ? 'w-14 h-14' : 'w-16 h-16'}`}
+                 >
+                   {isPlaying ? (
+                     <Pause className="w-6 h-6 text-black" />
+                   ) : (
+                     <Play className="w-6 h-6 ml-1 text-black" />
+                   )}
+                 </button>
 
-               {/* Next - Hide in immersive */}
-               <button
-                  onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime += 10; }}
-                  className={`p-4 text-white hover:text-white/80 active:scale-90 transition-all
-                    ${immersiveMode ? 'opacity-0 w-0 p-0 pointer-events-none' : 'opacity-100'}`}
-               >
-                  <SkipForward size={32} fill="currentColor" />
-               </button>
+                 {/* Skip Forward */}
+                 <button
+                   onClick={() => { if(mainAudioRef.current) mainAudioRef.current.currentTime += 10; }}
+                   className={`text-gray-400 hover:text-white transition-colors active:scale-95 ${immersiveMode ? 'opacity-0 w-0 pointer-events-none' : ''}`}
+                 >
+                   <SkipForward className="w-8 h-8" />
+                 </button>
+              </div>
+
+              {/* Device Selection */}
+              <div className={`flex justify-center pb-2 transition-all duration-300 ${immersiveMode ? 'opacity-0 h-0 overflow-hidden' : ''}`}>
+                <div className="flex items-center gap-2 px-3 py-1 bg-[#1a1a1a] rounded-full border border-white/5 cursor-pointer hover:bg-[#222] transition-colors">
+                   <span className="w-2 h-2 rounded-full bg-green-500" />
+                   <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">iPhone</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
