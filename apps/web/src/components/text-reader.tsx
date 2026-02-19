@@ -13,8 +13,8 @@ type ColorMode = "light" | "dark" | "sepia";
 
 export function TextReader({ content, title = "Читалка" }: TextReaderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [fontSize, setFontSize] = useState(20);
-  const [fontFamily, setFontFamily] = useState<FontFamily>("serif");
+  const fontSize = 20;
+  const fontFamily: FontFamily = "serif";
   const [colorMode, setColorMode] = useState<ColorMode>("dark");
 
   // Lock scroll when reader is open
@@ -145,34 +145,6 @@ function BookIcon() {
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M12 5v14m-7-7h14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M5 12h14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function MoonIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -182,20 +154,6 @@ function MoonIcon() {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
       />
     </svg>
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FeatureCarousel } from "@/components/feature-carousel";
 import { HeroTeaser } from "@/components/hero-teaser";
 import { DecorativeBand } from "@/components/decorative-band";
-import { getAllPeople, getPerson } from "@/lib/mdx";
+import { getPerson } from "@/lib/mdx";
 
 export const metadata: Metadata = {
   title: "Dive — Featured Stories | Oi/Notes",

@@ -1,11 +1,4 @@
-import Link from "next/link";
-
 import type { PersonFrontmatter } from "@/lib/content-schema";
-
-const FALLBACK_CTA = {
-  href: "#note",
-  label: "читать далее",
-};
 
 type HeroTeaserProps = {
   frontmatter: PersonFrontmatter;
@@ -14,9 +7,6 @@ type HeroTeaserProps = {
 export function HeroTeaser({ frontmatter }: HeroTeaserProps) {
   const intro = frontmatter.introSequences[0] ?? null;
   const videoSrc = intro?.src ?? frontmatter.video.url;
-
-  const ctaHref = FALLBACK_CTA.href;
-  const ctaLabel = FALLBACK_CTA.label;
 
   return (
     <section className="hero-teaser" aria-labelledby="hero-title">

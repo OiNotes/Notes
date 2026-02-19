@@ -78,7 +78,7 @@ export function GlobalTimeline({ items, onEraSelect }: GlobalTimelineProps) {
   const [rippleKey, setRippleKey] = useState<number>(0);
 
   // Compute positions along the curve (evenly spaced by length)
-  const points: PointLayout[] = useMemo(() => {
+  const points: PointLayout[] = (() => {
     const p: PointLayout[] = [];
     const el = pathRef.current;
     if (!el) return p;
@@ -90,16 +90,16 @@ export function GlobalTimeline({ items, onEraSelect }: GlobalTimelineProps) {
       p.push({ x: pt.x, y: pt.y, t });
     }
     return p;
-  }, [svgRef.current, pathRef.current, revealed]);
+  })();
 
   // Origin (start) point
-  const origin = useMemo(() => {
+  const origin = (() => {
     const el = pathRef.current;
     if (!el) return null as null | { x: number; y: number };
     const total = el.getTotalLength();
     const pt = el.getPointAtLength(total * 0.02);
     return { x: pt.x, y: pt.y };
-  }, [pathRef.current, revealed]);
+  })();
 
   // Intersection reveal for path draw
   useEffect(() => {
@@ -136,7 +136,7 @@ export function GlobalTimeline({ items, onEraSelect }: GlobalTimelineProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [onEraSelect]);
 
   const onSelect = (id: string) => {
     const newSelected = selected === id ? null : id;

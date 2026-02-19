@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Era = {
   id: string;
@@ -71,7 +71,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
   const [hoveredLineIdx, setHoveredLineIdx] = useState<number | null>(null);
 
   // Compute positions along the curve (evenly spaced by length)
-  const points: PointLayout[] = useMemo(() => {
+  const points: PointLayout[] = (() => {
     const p: PointLayout[] = [];
     const el = pathRef.current;
     if (!el) return p;
@@ -88,7 +88,7 @@ export function LuxTimeline({ showHeroPoint }: { showHeroPoint?: boolean }) {
       });
     }
     return p;
-  }, [svgRef.current, pathRef.current, revealed]);
+  })();
 
 
   // Intersection reveal for path draw

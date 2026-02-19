@@ -57,7 +57,12 @@ export async function GET(
       }))
     };
 
-    return NextResponse.json(formattedTrack);
+    return NextResponse.json(formattedTrack, {
+      headers: {
+        // Short edge caching to reduce repeated lookups for the same track.
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=30'
+      }
+    });
   } catch (error) {
     console.error('Error fetching track:', error);
     return NextResponse.json(

@@ -24,7 +24,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [previousVolume, setPreviousVolume] = useState(1);
   const [duration, setDuration] = useState(0);
@@ -42,25 +41,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
       album: "Видео заметки",
     });
   }, [title]);
-
-  // Блокировка скролла
-  const scrollPosition = useRef(0);
-
-  const lockScroll = () => {
-    scrollPosition.current = window.pageYOffset;
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollPosition.current}px`;
-    document.body.style.width = '100%';
-  };
-
-  const unlockScroll = () => {
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    window.scrollTo(0, scrollPosition.current);
-  };
 
   // Управление контролами
   const resetHideControlsTimer = () => {
@@ -148,7 +128,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
       // Инициализируем громкость при загрузке
       video.volume = 1;
       setVolume(1);
-      setIsMuted(false);
     };
     const handlePlay = () => {
       setIsPlaying(true);
@@ -165,7 +144,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
     const handleTime = () => setCurrentTime(video.currentTime);
     const handleVolume = () => {
       setVolume(video.volume);
-      setIsMuted(video.volume === 0);
     };
 
     video.addEventListener("loadedmetadata", handleLoaded);
@@ -210,7 +188,6 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
     const newVolume = Number(event.currentTarget.value);
     video.volume = newVolume;
     setVolume(newVolume);
-    setIsMuted(newVolume === 0);
     if (newVolume > 0) {
       setPreviousVolume(newVolume);
     }
@@ -225,13 +202,11 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
       const newVolume = previousVolume > 0 ? previousVolume : 1;
       video.volume = newVolume;
       setVolume(newVolume);
-      setIsMuted(false);
     } else {
       // Mute: сохраняем текущий уровень и обнуляем
       setPreviousVolume(volume);
       video.volume = 0;
       setVolume(0);
-      setIsMuted(true);
     }
   };
 
@@ -272,11 +247,17 @@ export function VideoCard({ source, poster, title, caption }: VideoCardProps) {
           ref={videoRef}
           className="video-card__video"
           src={source}
+          poster={poster}
           playsInline
           preload="metadata"
         />
         {/* Custom poster overlay to hide native browser placeholder */}
-        {!isPlaying && <div className="video-card__poster" />}
+        {!isPlaying && (
+          <div
+            className="video-card__poster"
+            style={{ backgroundImage: `url(${poster})` }}
+          />
+        )}
         {!isPlaying && (
           <button
             type="button"

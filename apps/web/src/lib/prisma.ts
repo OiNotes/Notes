@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 
 // Bump the key to force a fresh client when schema changes (e.g., new fields like isAppend)
 declare global {
-  // eslint-disable-next-line no-var
   var prisma_v3: PrismaClient | undefined;
 }
 

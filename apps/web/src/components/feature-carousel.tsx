@@ -17,8 +17,6 @@ export function FeatureCarousel({ items, headline = "Выбор тем" }: Featu
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  if (items.length === 0) return null;
-
   const handleScroll = useCallback(() => {
     if (!trackRef.current || isDragging) return;
     const track = trackRef.current;
@@ -80,6 +78,8 @@ export function FeatureCarousel({ items, headline = "Выбор тем" }: Featu
     track.addEventListener("scroll", handleScroll);
     return () => track.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
+
+  if (items.length === 0) return null;
 
   return (
     <section className="feature-carousel" aria-label={headline}>

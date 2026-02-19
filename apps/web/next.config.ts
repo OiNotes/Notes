@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  turbopack: {
+    root: path.join(__dirname, "../.."),
+  },
 };
 
 export default nextConfig;
