@@ -4,21 +4,31 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 
 // --- TYPES ---
+type LyricLine = {
+  original: string;
+  translation: string;
+  time?: number;
+  isAppend?: boolean;
+};
+
+type SyncedLyricLine = {
+  id: number;
+  original: string;
+  translation: string;
+  time: number;
+  isSynced: boolean;
+  isAppend?: boolean;
+};
+
 type Track = {
   id: string;
   artist: string;
   title: string;
   color: string;
   coverUrl?: string;
-  lyrics: (string | { original: string; translation: string; time?: number })[];
+  lyrics: (string | LyricLine)[];
   audioSrc?: string | null;
-  syncedLyrics?: {
-    id: number;
-    original: string;
-    translation: string;
-    time: number;
-    isSynced: boolean;
-  }[];
+  syncedLyrics?: SyncedLyricLine[];
 };
 
 type PlaceboVisualizerProps = {
@@ -725,6 +735,18 @@ const INK_WORDS = ['lies', 'skin', 'hide', 'unclean', 'pack', 'breeds'];
 const FLASH_WORDS = ['tick', 'tock', 'nothing', 'libertine', 'spleen'];
 
 export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlaying, onTogglePlay, onSeek, onClose }: PlaceboVisualizerProps) => {
+  // Live reduced-motion preference via matchMedia listener
+  const prefersReducedMotionRef = useRef(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handler = (e: MediaQueryListEvent) => { prefersReducedMotionRef.current = e.matches; };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [lyricLine, setLyricLine] = useState<{
     en: string;
@@ -754,6 +776,14 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   const stitchesRef = useRef<Stitch[]>([]);
   const inkSplatterRef = useRef<InkSplatter>(new InkSplatter());
 
+  // Cached noise texture for performance (replaces 3000 fillRect/frame)
+  const noiseCanvasRef = useRef<HTMLCanvasElement | OffscreenCanvas | null>(null);
+  const noiseOffsetRef = useRef(0);
+  // Frame counter for throttling noise checks
+  const frameCountRef = useRef(0);
+  // Track visibility state for pausing animation when tab is hidden
+  const isTabVisibleRef = useRef(true);
+
   // --- AUTO-HIDE CONTROLS ---
   useEffect(() => {
     if (isPlaying) {
@@ -778,15 +808,16 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
   useEffect(() => {
     if (!activeTrack.lyrics) return;
 
-    const lyrics = activeTrack.syncedLyrics || activeTrack.lyrics;
-    
+    const rawLyrics = activeTrack.syncedLyrics || activeTrack.lyrics;
+
+    // Normalize to a common shape with time for searching
+    const lyrics: (LyricLine | SyncedLyricLine)[] = rawLyrics
+      .filter((l): l is LyricLine | SyncedLyricLine => typeof l !== 'string');
+
     // Logic: Find the active line for current timestamp
     // Since lines are ordered by time, we take the last one that has started
-    // @ts-ignore
     let activeIndex = -1;
-    // @ts-ignore
     for (let i = 0; i < lyrics.length; i++) {
-        // @ts-ignore
         if ((lyrics[i].time || 0) <= currentTime) {
             activeIndex = i;
         } else {
@@ -796,16 +827,15 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
 
     const current = activeIndex !== -1 ? lyrics[activeIndex] : null;
 
-    if (current && typeof current !== 'string') {
+    if (current) {
       let en = current.original || '';
       let ru = current.translation || '';
 
       // Handle Appending
-      // @ts-ignore
       if (current.isAppend) {
          let prevIdx = activeIndex - 1;
-         while (prevIdx >= 0 && (lyrics[prevIdx + 1] as any).isAppend) {
-             const prev = lyrics[prevIdx] as any;
+         while (prevIdx >= 0 && lyrics[prevIdx + 1]?.isAppend) {
+             const prev = lyrics[prevIdx];
              en = (prev.original || '') + " " + en;
              ru = (prev.translation || '') + " " + ru;
              if (!prev.isAppend) break;
@@ -844,31 +874,32 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
            }
         }
 
-        // Spawn TEAR effects (screen rips)
-        if (isTear && canvas) {
+        // Spawn TEAR effects (screen rips) - skip for reduced motion
+        if (!prefersReducedMotionRef.current && isTear && canvas) {
           const tearCount = Math.floor(Math.random() * 2) + 1;
           for (let i = 0; i < tearCount; i++) {
             if (tearsRef.current.length < 3) tearsRef.current.push(new ScreenTear(canvas.width, canvas.height));
           }
         }
 
-        // Spawn STITCH effects
-        if (isStitch && canvas) {
+        // Spawn STITCH effects - skip for reduced motion
+        if (!prefersReducedMotionRef.current && isStitch && canvas) {
           const stitchCount = Math.floor(Math.random() * 3) + 2;
           for (let i = 0; i < stitchCount; i++) {
             if (stitchesRef.current.length < 8) stitchesRef.current.push(new Stitch(canvas.width, canvas.height));
           }
         }
 
-        // Spawn INK splatter
-        if (isInk && canvas) {
+        // Spawn INK splatter - skip for reduced motion
+        if (!prefersReducedMotionRef.current && isInk && canvas) {
           const x = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.6;
           const y = canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.4;
           inkSplatterRef.current.spawn(x, y, 15);
         }
 
         // Flash ONLY for emphasis words (tick-tock, chorus keywords)
-        if (shouldFlash || isTickTock || isExplosion) flashRef.current = 0.8;
+        // Skip flash/strobe when reduced motion is preferred
+        if (!prefersReducedMotionRef.current && (shouldFlash || isTickTock || isExplosion)) flashRef.current = 0.8;
       }
 
     } else {
@@ -891,6 +922,8 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      try {
 
       const width = canvas.width;
       const height = canvas.height;
@@ -922,8 +955,9 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       });
 
       // Scribbles (Nervous - drawn behind text usually)
-      // Randomly spawn idle scribbles for background texture
-      if (Math.random() > 0.98) {
+      // Throttle scribble spawns to every 4th frame
+      frameCountRef.current++;
+      if (frameCountRef.current % 4 === 0 && Math.random() > 0.92) {
           scribblesRef.current[Math.floor(Math.random() * scribblesRef.current.length)].spawn();
       }
       scribblesRef.current.forEach(s => { s.update(); s.draw(ctx); });
@@ -948,12 +982,16 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       inkSplatterRef.current.update();
       inkSplatterRef.current.draw(ctx);
 
-      // Static (Noise)
-      for (let i = 0; i < 3000; i++) {
-        const x = Math.random() * width;
-        const y = Math.random() * height;
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)';
-        ctx.fillRect(x, y, 2, 2);
+      // Static (Noise) - use cached noise texture
+      if (noiseCanvasRef.current) {
+        // Draw cached noise with slight offset each frame for variation
+        const noiseCanvas = noiseCanvasRef.current;
+        noiseOffsetRef.current = (noiseOffsetRef.current + 1) % 8;
+        const ox = (noiseOffsetRef.current % 4) * 3 - 6; // -6, -3, 0, 3
+        const oy = Math.floor(noiseOffsetRef.current / 4) * 3 - 3; // -3, 0
+        ctx.globalAlpha = 1;
+        ctx.drawImage(noiseCanvas as HTMLCanvasElement, ox, oy);
+        ctx.globalAlpha = 1;
       }
 
       // Scanlines
@@ -970,25 +1008,31 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
-      // Flash
-      if (flashRef.current > 0.01) {
+      // Flash (skip when reduced motion is preferred)
+      // EaseOut decay for natural flash falloff
+      if (!prefersReducedMotionRef.current && flashRef.current > 0.01) {
           ctx.fillStyle = `rgba(255, 255, 255, ${flashRef.current})`;
           ctx.fillRect(0, 0, width, height);
-          flashRef.current *= 0.9;
-          if (flashRef.current < 0.01) flashRef.current = 0; 
+          flashRef.current = flashRef.current * flashRef.current * 0.95;
+          if (flashRef.current < 0.01) flashRef.current = 0;
       }
 
-      // Glitch
-      if (Math.random() > 0.97) {
+      // Glitch (skip when reduced motion is preferred)
+      // Throttle glitch checks
+      if (!prefersReducedMotionRef.current && frameCountRef.current % 4 === 0 && Math.random() > 0.88) {
           const shiftX = Math.random() * 10 - 5;
-          const offset = Math.random() * 100;
-          const h = Math.random() * 50;
+          const glitchY = Math.floor(Math.random() * (height - 50));
+          const glitchH = Math.floor(Math.random() * 50);
           try {
-              const imageData = ctx.getImageData(0, offset, width, h);
-              ctx.putImageData(imageData, shiftX, offset);
+              // Use drawImage to copy a strip of the canvas onto itself with offset
+              ctx.drawImage(canvas, 0, glitchY, width, glitchH, shiftX, glitchY, width, glitchH);
           } catch(e) {}
            ctx.fillStyle = `rgba(255, 255, 255, 0.05)`;
            ctx.fillRect(0, 0, width, height);
+      }
+
+      } catch (err) {
+        console.error('Visualizer animation error:', err);
       }
 
       requestRef.current = requestAnimationFrame(animateRef.current!);
@@ -999,6 +1043,54 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Generate noise texture once and cache it
+    const generateNoiseTexture = (w: number, h: number) => {
+      // Use OffscreenCanvas if available, fallback to regular canvas
+      let noiseCanvas: HTMLCanvasElement | OffscreenCanvas;
+      let noiseCtx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+      try {
+        noiseCanvas = new OffscreenCanvas(w, h);
+        noiseCtx = noiseCanvas.getContext('2d');
+      } catch {
+        // Fallback for browsers without OffscreenCanvas (some Firefox versions, Safari < 16.4)
+        noiseCanvas = document.createElement('canvas');
+        noiseCanvas.width = w;
+        noiseCanvas.height = h;
+        noiseCtx = noiseCanvas.getContext('2d');
+      }
+      if (!noiseCtx) return;
+
+      // Generate noise using ImageData (much faster than 3000 fillRect calls)
+      const imageData = noiseCtx.createImageData(w, h);
+      const data = imageData.data;
+      // Place ~3000 noise dots across the texture
+      for (let i = 0; i < 3000; i++) {
+        const x = Math.floor(Math.random() * w);
+        const y = Math.floor(Math.random() * h);
+        // 2x2 pixel dots, matching original size
+        for (let dy = 0; dy < 2 && (y + dy) < h; dy++) {
+          for (let dx = 0; dx < 2 && (x + dx) < w; dx++) {
+            const idx = ((y + dy) * w + (x + dx)) * 4;
+            if (Math.random() > 0.5) {
+              // White noise: rgba(255,255,255,0.05)
+              data[idx] = 255;
+              data[idx + 1] = 255;
+              data[idx + 2] = 255;
+              data[idx + 3] = Math.round(0.05 * 255); // ~13
+            } else {
+              // Dark noise: rgba(0,0,0,0.1)
+              data[idx] = 0;
+              data[idx + 1] = 0;
+              data[idx + 2] = 0;
+              data[idx + 3] = Math.round(0.1 * 255); // ~26
+            }
+          }
+        }
+      }
+      noiseCtx.putImageData(imageData, 0, 0);
+      noiseCanvasRef.current = noiseCanvas;
+    };
+
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -1006,17 +1098,45 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
       pillsRef.current = Array.from({ length: 15 }, () => new Pill(canvas.width, canvas.height));
       scribblesRef.current = Array.from({ length: 8 }, () => new NervousScribble(canvas.width, canvas.height)); // Init scribbles
       clockRef.current.resize(canvas.width, canvas.height);
+      // Regenerate noise texture when canvas size changes
+      generateNoiseTexture(canvas.width, canvas.height);
     };
     
     resize();
     window.addEventListener('resize', resize);
+
+    // Page Visibility API - pause animation when tab is hidden
+    const startLoop = () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      requestRef.current = requestAnimationFrame(animateRef.current!);
+    };
+
+    const stopLoop = () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = undefined;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isTabVisibleRef.current = false;
+        stopLoop();
+      } else {
+        isTabVisibleRef.current = true;
+        startLoop();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Start Loop immediately (even if paused, we want the static noise/vignette)
-    requestRef.current = requestAnimationFrame(animateRef.current!);
+    startLoop();
 
     return () => {
         window.removeEventListener('resize', resize);
-        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        stopLoop();
     };
   }, []); // Run once on mount
 
@@ -1028,10 +1148,10 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
         .font-script { font-family: 'Bad Script', cursive; }
        `}</style>
 
-       <canvas ref={canvasRef} className="absolute top-0 left-0 z-10 block" />
+       <canvas ref={canvasRef} role="img" aria-label={`Music visualizer for ${activeTrack.title}`} className="absolute top-0 left-0 z-10 block" />
 
        {/* LYRICS LAYER */}
-       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none mix-blend-exclusion p-8 text-center pb-32">
+       <div aria-live="polite" aria-atomic="true" className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none mix-blend-exclusion p-8 text-center pb-32">
           <div className="transition-opacity duration-300" style={{
                opacity: lyricLine.en ? 1 : 0,
                textShadow: lyricLine.isFall ? "4px 4px 0px rgba(200, 0, 0, 0.5)" : "2px 2px 0px rgba(255, 255, 255, 0.1)"
@@ -1049,7 +1169,7 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
        <div className={`absolute bottom-0 left-0 right-0 z-50 p-4 sm:p-8 md:p-12 flex flex-col gap-4 sm:gap-6 bg-gradient-to-t from-black via-black/80 to-transparent transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           
           {/* Progress Bar - Hidden on PC as requested, hidden on mobile via parent */}
-          <div className="w-full group cursor-pointer md:hidden" 
+          <div role="slider" aria-label="Seek" aria-valuemin={0} aria-valuemax={Math.round(duration)} aria-valuenow={Math.round(currentTime)} aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`} tabIndex={0} className="w-full group cursor-pointer md:hidden" 
                onClick={(e) => {
                  const rect = e.currentTarget.getBoundingClientRect();
                  const percent = (e.clientX - rect.left) / rect.width;
@@ -1072,19 +1192,20 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
              </div>
 
              <div className="flex items-center gap-8">
-                <button onClick={() => onSeek(currentTime - 10)} className="text-white/50 hover:text-white transition-colors">
-                   <SkipBack size={32} />
-                </button>
-                
-                <button 
-                   onClick={onTogglePlay} 
-                   className="w-16 h-16 border-2 border-[#eee] rounded-full flex items-center justify-center hover:bg-[#eee] hover:text-black transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-                >
-                   {isPlaying ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
+                <button aria-label="Skip back 10 seconds" onClick={() => onSeek(currentTime - 10)} className="text-white/50 hover:text-white transition-colors">
+                   <SkipBack size={32} aria-hidden="true" />
                 </button>
 
-                <button onClick={() => onSeek(currentTime + 10)} className="text-white/50 hover:text-white transition-colors">
-                   <SkipForward size={32} />
+                <button
+                   aria-label={isPlaying ? 'Pause' : 'Play'}
+                   onClick={onTogglePlay}
+                   className="w-16 h-16 border-2 border-[#eee] rounded-full flex items-center justify-center hover:bg-[#eee] hover:text-black transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                >
+                   {isPlaying ? <Pause size={32} aria-hidden="true" /> : <Play size={32} className="ml-1" aria-hidden="true" />}
+                </button>
+
+                <button aria-label="Skip forward 10 seconds" onClick={() => onSeek(currentTime + 10)} className="text-white/50 hover:text-white transition-colors">
+                   <SkipForward size={32} aria-hidden="true" />
                 </button>
              </div>
           </div>
@@ -1092,10 +1213,11 @@ export const PlaceboVisualizer = ({ activeTrack, currentTime, duration, isPlayin
 
        {/* Close Button */}
        <button
+         aria-label="Close visualizer"
          onClick={onClose}
          className={`absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white border border-transparent hover:border-white/20 rounded-full transition-all cursor-pointer mix-blend-difference ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
        >
-         <X size={32} />
+         <X size={32} aria-hidden="true" />
        </button>
     </div>
   );

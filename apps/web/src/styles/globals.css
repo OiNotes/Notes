@@ -2655,6 +2655,24 @@ code {
   }
 }
 
+/* Mask linear — vertical fade for lyrics scroll containers */
+.mask-linear {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+}
+
 /* Hide global SiteHeader and SiteFooter on music page */
 body:has([class*="music"]) .site-header,
 body:has([class*="music"]) .site-footer {
@@ -2676,4 +2694,131 @@ body:has([class*="music"]) .site-footer {
 
 .animate-blob {
   animation: blob 20s ease-in-out infinite;
+}
+
+/* ========================================
+   MUSIC PLAYER ANIMATIONS
+   ======================================== */
+
+/* StudioModal slide-up entrance */
+@keyframes slide-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 300ms var(--ease-elegant) forwards;
+}
+
+/* PinModal fade + zoom entrance */
+@keyframes fade-zoom-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fade-zoom {
+  animation: fade-zoom-in 200ms var(--ease-elegant) forwards;
+}
+
+/* FullPlayer slide-up entrance (slower) */
+@keyframes slide-up-slow {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-slow {
+  animation: slide-up-slow 500ms var(--ease-elegant) forwards;
+}
+
+/* BentoItem staggered fade-in-up */
+@keyframes bento-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-bento-fade-in {
+  opacity: 0;
+  animation: bento-fade-in-up 400ms var(--ease-elegant) forwards;
+}
+
+/* Lyrics fade-in */
+@keyframes lyrics-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-lyrics-fade-in {
+  animation: lyrics-fade-in 500ms var(--ease-elegant) forwards;
+}
+
+/* Vinyl spin timing token */
+:root {
+  --dur-vinyl-spin: 6s;
+}
+
+/* Strobe flash timing token */
+:root {
+  --dur-strobe-flash: var(--dur-quick);
+}
+
+/* ========================================
+   ACCESSIBILITY: Reduced Motion Support
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable spinning animations (vinyl, orbital, decorative rotations) */
+  .hero-nucleus__orbital,
+  .deco-shape,
+  .deco-orb,
+  .animate-blob {
+    animation: none !important;
+  }
+
+  /* Hide strobing/flashing effects */
+  .hero-teaser__progress-bar,
+  .feature-carousel__progress-bar,
+  .timeline-lux__path--shimmer {
+    animation: none !important;
+  }
+
+  .deco-dot {
+    animation: none !important;
+    opacity: 0.6 !important;
+  }
 }

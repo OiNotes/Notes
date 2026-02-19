@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig: NextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
 };
 

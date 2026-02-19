@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Container } from "@/components/container";
@@ -13,6 +14,23 @@ export const dynamicParams = false;
 export async function generateStaticParams() {
   const slugs = await getAllPeopleSlugs();
   return slugs.map((slug) => ({ slug }));
+}
+
+/** Dynamic metadata for note pages */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  try {
+    const profile = await getPerson(slug);
+    return {
+      title: `${profile.frontmatter.title} | Oi/Notes`,
+      description: profile.frontmatter.summary || profile.frontmatter.excerpt || `Read about ${profile.frontmatter.title} on Oi/Notes.`,
+    };
+  } catch {
+    return {
+      title: "Note | Oi/Notes",
+      description: "Personal note on Oi/Notes.",
+    };
+  }
 }
 
 export default async function NotePage({ params }: { params: Promise<{ slug: string }> }) {
