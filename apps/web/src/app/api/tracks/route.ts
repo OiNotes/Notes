@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { TrackCreateSchema } from '@/lib/validators';
+import { log } from '@/lib/logger';
+import crypto from 'crypto';
 
-// GET /api/tracks - получить все треки с текстами
-export async function GET() {
+// GET /api/tracks - получить все треки (без lyrics, с пагинацией)
+export async function GET(request: NextRequest) {
   try {
-    console.log('[API] Fetching tracks from database...');
+    const { searchParams } = new URL(request.url);
+    const cursor = searchParams.get('cursor');
+    const limitParam = searchParams.get('limit');
+    const limit = Math.min(Math.max(parseInt(limitParam || '50', 10) || 50, 1), 100);
+
+    log('[API] Fetching tracks, cursor:', cursor, 'limit:', limit);
+
+    // Build cursor-based pagination query
     const tracks = await prisma.track.findMany({
-      include: {
-        lyrics: {
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        strobeMarkers: {
-          orderBy: {
-            time: 'asc'
-          }
+      take: limit + 1, // fetch one extra to determine if there's a next page
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        artist: true,
+        title: true,
+        color: true,
+        audioPath: true,
+        coverUrl: true,
+        category: true,
+        updatedAt: true,
+        _count: {
+          select: { lyrics: true }
         }
       },
       orderBy: {
@@ -23,9 +36,32 @@ export async function GET() {
       }
     });
 
-    console.log('[API] Found tracks:', tracks.length);
+    // Determine next cursor
+    let nextCursor: string | null = null;
+    if (tracks.length > limit) {
+      const nextItem = tracks.pop();
+      nextCursor = nextItem!.id;
+    }
 
-    // Преобразуем audioPath в audioSrc для фронтенда
+    log('[API] Found tracks:', tracks.length);
+
+    // Compute ETag from the most recent updatedAt + count
+    const mostRecentUpdatedAt = tracks.length > 0
+      ? tracks.reduce((latest, t) => t.updatedAt > latest ? t.updatedAt : latest, tracks[0].updatedAt)
+      : new Date(0);
+    const etagSource = `${mostRecentUpdatedAt.toISOString()}-${tracks.length}-${cursor || 'start'}`;
+    const etag = `"${crypto.createHash('md5').update(etagSource).digest('hex')}"`;
+
+    // Check If-None-Match
+    const ifNoneMatch = request.headers.get('if-none-match');
+    if (ifNoneMatch === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag }
+      });
+    }
+
+    // Format response — no lyrics, add lyricsCount
     const formattedTracks = tracks.map(track => ({
       id: track.id,
       artist: track.artist,
@@ -34,21 +70,13 @@ export async function GET() {
       audioSrc: track.audioPath,
       coverUrl: track.coverUrl,
       category: track.category,
-      lyrics: track.lyrics.map(lyric => ({
-        id: lyric.id,
-        original: lyric.original,
-        translation: lyric.translation,
-        time: lyric.time,
-        isSynced: lyric.isSynced,
-        isAppend: lyric.isAppend
-      })),
-      strobeMarkers: track.strobeMarkers.map(marker => ({
-        id: marker.id,
-        time: marker.time
-      }))
+      lyricsCount: track._count.lyrics
     }));
 
-    return NextResponse.json(formattedTracks);
+    const response = NextResponse.json({ tracks: formattedTracks, nextCursor });
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    response.headers.set('ETag', etag);
+    return response;
   } catch (error) {
     console.error('[API] Error fetching tracks:', error);
     return NextResponse.json(
@@ -60,18 +88,19 @@ export async function GET() {
 
 // POST /api/tracks - создать новый трек
 export async function POST(request: NextRequest) {
-  console.log('[API] POST /api/tracks request received'); // Trigger rebuild
+  log('[API] POST /api/tracks request received');
   try {
     const body = await request.json();
-    const { artist, title, color, audioPath, coverUrl, lyrics, strobeMarkers, category } = body;
+    const parsed = TrackCreateSchema.safeParse(body);
 
-    // Валидация
-    if (!artist || !title || !color || !audioPath) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing required fields: artist, title, color, audioPath' },
+        { error: 'Validation failed', details: parsed.error.issues },
         { status: 400 }
       );
     }
+
+    const { artist, title, color, audioPath, coverUrl, lyrics, strobeMarkers, category } = parsed.data;
 
     // Создаем трек с текстами в одной транзакции
     const track = await prisma.track.create({
@@ -83,7 +112,7 @@ export async function POST(request: NextRequest) {
         coverUrl: coverUrl || null,
         category: category || 'yours',
         lyrics: {
-          create: lyrics?.map((lyric: any, index: number) => ({
+          create: lyrics?.map((lyric, index: number) => ({
             original: lyric.original || '',
             translation: lyric.translation || '',
             time: lyric.time || 0,
@@ -93,7 +122,7 @@ export async function POST(request: NextRequest) {
           })) || []
         },
         strobeMarkers: {
-          create: strobeMarkers?.map((marker: any) => ({
+          create: strobeMarkers?.map((marker) => ({
             time: marker.time || 0
           })) || []
         }
@@ -139,7 +168,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating track:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to create track',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

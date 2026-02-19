@@ -11,44 +11,55 @@ datasource db {
 }
 
 model Track {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   artist    String
   title     String
-  color     String   // Gradient class name (e.g., "from-red-900 via-red-950 to-black")
-  audioPath String   // Path to audio file (e.g., "/uploads/audio/track-123.mp3")
-  coverUrl  String?  // URL to cover image
-  category  String   @default("yours")  // "yours" | "all"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  color     String    // Gradient class name (e.g., "from-red-900 via-red-950 to-black")
+  audioPath String    // Path to audio file (e.g., "/uploads/audio/track-123.mp3")
+  coverUrl  String?   // URL to cover image
+  category  String    @default("yours")  // "yours" | "all"
+  deletedAt DateTime? // Soft delete timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   lyrics        Lyric[]
   strobeMarkers StrobeMarker[]
 
+  @@index([createdAt])
+  @@index([category])
+  @@index([category, createdAt]) // Compound index for category filter + createdAt sort
   @@map("tracks")
 }
 
 model Lyric {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   trackId     String
-  original    String  // Original text
-  translation String  // Translation text
-  time        Float   // Timestamp in seconds
-  isSynced    Boolean @default(false)
-  isAppend    Boolean @default(false) // Whether to append this line to the previous one
-  order       Int     // Order of lyrics in track
+  original    String   // Original text
+  translation String   // Translation text
+  // Float precision sufficient for audio timestamps (millisecond accuracy not required)
+  time        Float    // Timestamp in seconds
+  isSynced    Boolean  @default(false)
+  isAppend    Boolean  @default(false) // Whether to append this line to the previous one
+  order       Int      // Order of lyrics in track
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime? @updatedAt
 
   track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@map("lyrics")
   @@index([trackId])
+  @@index([trackId, order])
 }
 
 model StrobeMarker {
-  id      String @id @default(cuid())
-  trackId String
-  time    Float
-  track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  trackId   String
+  // Float precision sufficient for audio timestamps (millisecond accuracy not required)
+  time      Float
+  createdAt DateTime @default(now())
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@map("strobe_markers")
   @@index([trackId])
+  @@index([trackId, time])
 }

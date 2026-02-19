@@ -20,6 +20,13 @@ export default function MusicLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
       </head>
       <body className="bg-[#050505] h-full w-full text-white antialiased overflow-hidden">
+        {/* Skip-to-content link */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-white focus:text-black focus:px-4 focus:py-2 focus:rounded-lg"
+        >
+          Skip to content
+        </a>
         {children}
       </body>
     </html>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { TrackUpdateSchema } from '@/lib/validators';
+import { log, warn } from '@/lib/logger';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -72,7 +74,17 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { artist, title, category, coverUrl, lyrics, strobeMarkers } = await request.json();
+    const body = await request.json();
+    const parsed = TrackUpdateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const { artist, title, category, coverUrl, lyrics, strobeMarkers } = parsed.data;
 
     // Transaction to update track and replace lyrics/markers
     const track = await prisma.$transaction(async (tx) => {
@@ -91,7 +103,7 @@ export async function PUT(
         if (lyrics) {
             await tx.lyric.deleteMany({ where: { trackId: id } });
             await tx.lyric.createMany({
-                data: lyrics.map((l: any, index: number) => ({
+                data: lyrics.map((l, index: number) => ({
                     trackId: id,
                     original: l.original || '',
                     translation: l.translation || '',
@@ -103,12 +115,11 @@ export async function PUT(
             });
         }
 
-        // 3. If strobeMarkers provided, replace them (optional, usually handled by separate endpoint but good to have sync)
-        // Actually strobeMarkers has its own endpoint logic usually, but let's allow full save here.
+        // 3. If strobeMarkers provided, replace them
         if (strobeMarkers) {
             await tx.strobeMarker.deleteMany({ where: { trackId: id } });
             await tx.strobeMarker.createMany({
-                data: strobeMarkers.map((m: any) => ({
+                data: strobeMarkers.map((m) => ({
                     trackId: id,
                     time: m.time || 0
                 }))
@@ -152,11 +163,7 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating track:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to update track', 
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined 
-      },
+      { error: 'Failed to update track' },
       { status: 500 }
     );
   }
@@ -188,10 +195,17 @@ export async function DELETE(
 
     // Пытаемся удалить аудио файл
     try {
-      const audioFilePath = path.join(process.cwd(), 'public', track.audioPath);
-      await fs.unlink(audioFilePath);
+      const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+      const audioFilePath = path.resolve(process.cwd(), 'public', track.audioPath);
+
+      // Validate path is within uploads directory to prevent path traversal
+      if (!audioFilePath.startsWith(uploadsDir + path.sep) && audioFilePath !== uploadsDir) {
+        warn('Attempted path traversal in audio file deletion:', track.audioPath);
+      } else {
+        await fs.unlink(audioFilePath);
+      }
     } catch (fileError) {
-      console.warn('Failed to delete audio file:', fileError);
+      warn('Failed to delete audio file:', fileError);
       // Не критично, файл может быть уже удалён
     }
 
