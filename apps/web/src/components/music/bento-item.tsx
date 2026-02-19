@@ -26,7 +26,7 @@ const BentoItemInner = ({
     <div
       onClick={onClick}
       className={`group relative overflow-hidden rounded-[1.5rem] cursor-pointer transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl border border-white/5
-        col-span-1 row-span-1
+        h-full min-h-[180px] col-span-1 row-span-1
         ${size === 'large' ? 'md:col-span-2 md:row-span-2' : ''}
         ${size === 'medium' ? 'md:row-span-2' : ''}
         ${isActive ? 'ring-2 ring-amber-500/50' : ''}`}

@@ -22,6 +22,8 @@ export function useLyricsSync(
     const current = getCurrentTime();
     const dur = getDuration();
 
+    if (!activeTrack.lyrics?.length) return;
+
     const hasTiming = activeTrack.lyrics.length > 0 &&
       typeof activeTrack.lyrics[0] !== 'string' &&
       'time' in (activeTrack.lyrics[0] as any);

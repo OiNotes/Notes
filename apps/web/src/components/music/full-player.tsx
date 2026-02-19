@@ -109,7 +109,7 @@ export const FullPlayer = ({
           {/* 2. LYRICS VIEW */}
           <div className={`absolute inset-0 flex flex-col items-center justify-center px-4 text-center transition-all duration-500
              ${immersiveMode ? 'opacity-100 scale-100' : 'opacity-0 scale-110 pointer-events-none'}`}>
-             {activeTrack.lyrics.length > 0 ? (
+             {activeTrack.lyrics?.length > 0 ? (
                 <div className="w-full flex flex-col items-center justify-center min-h-[200px] animate-lyrics-fade-in">
                    <div key={currentLyricIndex} className="animate-lyric-crossfade">
                       <h2
