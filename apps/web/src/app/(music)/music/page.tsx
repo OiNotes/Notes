@@ -52,7 +52,7 @@ const Button = ({ onClick, children, variant = 'primary', className = '', disabl
 
 export default function MusicApp() {
   // --- HOOKS ---
-  const { tracks, setTracks, isLoading, loadTracks, loadError, handlePublish, handleEditTrack, handleDeleteTrack } = useTrackManager();
+  const { tracks, setTracks, isLoading, loadTracks, loadFullTrack, loadError, handlePublish, handleEditTrack, handleDeleteTrack } = useTrackManager();
   const { mainAudioRef, progressBarRef, currentTime, duration, updateTimeFromAudio, handleScrub, seekTo, getCurrentTimeRaw, getDurationRaw } = useAudioEngine();
 
   // --- LOCAL STATE ---
@@ -317,8 +317,9 @@ export default function MusicApp() {
     setTimeout(() => setIsTonearmMoving(false), 500);
   }, [isPlaying, handleClosePlayer, initAudioAnalyzer, mainAudioRef, isMobileViewport, activeCategory, setCurrentLyricIndex]);
 
-  const handleSelectTrack = useCallback((track: Track) => {
+  const handleSelectTrack = useCallback(async (track: Track) => {
     log('[MusicApp] Track Selected:', track.title);
+    // Set basic track immediately for responsiveness
     setActiveTrack(track);
     const hideOnMobileVisualizer = isMobileViewport && activeCategory === 'visual';
     setShowFullPlayer(!hideOnMobileVisualizer);
@@ -327,7 +328,13 @@ export default function MusicApp() {
     setImmersiveMode(false);
     setProgress(0);
     setCurrentLyricIndex(0);
-  }, [isMobileViewport, activeCategory, setCurrentLyricIndex]);
+
+    // Load full track with lyrics and strobeMarkers
+    const fullTrack = await loadFullTrack(track.id);
+    if (fullTrack) {
+      setActiveTrack(fullTrack);
+    }
+  }, [isMobileViewport, activeCategory, setCurrentLyricIndex, loadFullTrack]);
 
   const handleSeek = useCallback((time: number) => {
     seekTo(time);

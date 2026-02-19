@@ -19,7 +19,8 @@ export function useTrackManager() {
     try {
       const response = await fetch('/api/tracks');
       if (response.ok) {
-        const tracksData = await response.json();
+        const data = await response.json();
+        const tracksData = data.tracks || data; // Support both new { tracks, nextCursor } and legacy array format
         setTracks(tracksData);
         log('Loaded tracks:', tracksData);
       } else {
@@ -164,11 +165,24 @@ export function useTrackManager() {
     }
   }, []);
 
+  /** Load full track details (including lyrics and strobeMarkers) */
+  const loadFullTrack = useCallback(async (trackId: string): Promise<Track | null> => {
+    try {
+      const response = await fetch(`/api/tracks/${trackId}`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      console.error('Error loading full track:', error);
+      return null;
+    }
+  }, []);
+
   return {
     tracks,
     setTracks,
     isLoading,
     loadTracks,
+    loadFullTrack,
     loadError,
     handlePublish,
     handleEditTrack,
